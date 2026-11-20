@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Royal Enterprise | GST Invoice Generator</title>
+<style>
+:root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
+header{background:#123f66;color:white;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}header small{opacity:.85}
+nav{display:flex;gap:7px;flex-wrap:wrap;padding:12px 18px;background:white;border-bottom:1px solid #d4e0e8}
+button,.btn{border:0;border-radius:6px;padding:9px 13px;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#e7eef4;color:#173c58;border:1px solid #c5d5e1}button.danger{background:#a83232}button:disabled{opacity:.5;cursor:not-allowed}
+nav button.active{background:#123f66;color:#fff}
+main{max-width:1440px;margin:18px auto;padding:0 16px}.tab{display:none}.tab.active{display:block}
+.panel{background:white;border:1px solid #d6e1e9;border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #163b5510}
+h2{font-size:18px;margin:0 0 14px;color:#174d76}h3{font-size:15px;margin:0 0 10px;color:#174d76}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+label{display:block;font-size:12px;font-weight:700;color:#435766;margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px;border:1px solid #c7d5df;border-radius:5px;background:#fff;color:#1c2d39;font:inherit}
+textarea{min-height:62px;resize:vertical}.field{min-width:0}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding:7px;text-align:left;vertical-align:middle}th{background:#e3eff7;color:#183f5c;font-size:12px}td input{min-width:65px;padding:6px}
+.table-wrap{overflow:auto}.right{text-align:right}.muted{color:var(--muted);font-size:12px}.stat{background:#f1f7fb;border:1px solid #d7e5ee;border-radius:8px;padding:12px}
+.invoice-paper{background:white;max-width:900px;margin:0 auto;padding:22px;border:3px double #28638d;color:#172b3a}
+.inv-top{border:1px solid #28638d;padding:9px;margin-bottom:8px;text-align:center}.inv-top .tiny{font-size:11px;font-weight:bold}.brand{font-size:34px;letter-spacing:1px;color:#175b91;font-weight:900;margin:2px}.inv-meta{display:grid;grid-template-columns:1.35fr 1fr;gap:7px;margin:8px 0}
+.inv-box{border:1px solid #28638d;padding:8px;min-height:90px}.inv-box strong{color:#153f60}.inv-table th{text-align:center}.inv-table td{height:38px}.inv-table .desc{min-width:180px}.inv-bottom{display:grid;grid-template-columns:1.35fr 1fr;gap:8px;margin-top:8px}.bank,.terms,.totals{border:1px solid #28638d;padding:8px}.totals table td{height:29px}.totals table td:first-child{font-weight:bold}.grand{font-size:17px;font-weight:900;background:#e4eff7}.words{border:1px solid #28638d;padding:9px;margin-top:8px;min-height:40px;font-weight:bold}.signature{text-align:right;margin-top:16px;min-height:52px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+#historyTable td,#customerTable td,#productTable td{font-size:13px}
+.hidden{display:none!important}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.inv-meta,.inv-bottom{grid-template-columns:1fr}.invoice-paper{padding:10px}}
+@media(max-width:520px){.grid,.grid.two{grid-template-columns:1fr}header{padding:12px}.brand{font-size:26px}}
+@media print{
+ @page{size:A4;margin:10mm}
+ body{background:white;font-size:11px}
+ header,nav,.no-print,#editorTab,#customersTab,#productsTab,#historyTab,#settingsTab,.toolbar{display:none!important}
+ main{margin:0;padding:0;max-width:none}.tab{display:none!important}#previewTab{display:block!important}
+ .invoice-paper{border:2px double #28638d;max-width:none;padding:12px;box-shadow:none}
+ .inv-top,.inv-box,.inv-table th,.inv-bottom,.bank,.terms,.totals,.words{break-inside:avoid}
+ button{display:none!important}
+}
+</style>
+</head>
+<body>
+<header><div><h1>Royal Enterprise</h1><small>GST Tax Invoice Generator · INR</small></div><div class="muted" style="color:#eaf4fb">Local browser storage · No server required</div></header>
+<nav class="no-print">
+<button class="active" data-tab="editorTab">Create Invoice</button>
+<button data-tab="previewTab">Invoice Preview</button>
+<button data-tab="customersTab">Customers</button>
+<button data-tab="productsTab">Products</button>
+<button data-tab="historyTab">Invoice History</button>
+<button data-tab="settingsTab">Company Settings</button>
+</nav>
+<main>
+<section id="editorTab" class="tab active">
+<div class="panel">
+<div class="toolbar"><h2>Invoice details</h2><div class="row"><button class="secondary" id="newInvoiceBtn">New invoice</button><button id="previewBtn">Preview invoice →</button></div></div>
+<div class="grid">
+<div class="field"><label>Invoice number</label><input id="invoiceNo" readonly></div>
+<div class="field"><label>Challan number</label><input id="challanNo" placeholder="Optional"></div>
+<div class="field"><label>Invoice date</label><input id="invoiceDate" type="date"></div>
+<div class="field"><label>Place of supply / State</label><input id="placeSupply" placeholder="Gujarat"></div>
+</div>
+</div>
+<div class="panel">
+<h2>Buyer details</h2>
+<div class="grid two">
+<div class="field"><label>Customer name</label><input id="buyerName" list="customerNames" placeholder="Customer / business name"><datalist id="customerNames"></datalist></div>
+<div class="field"><label>GSTIN</label><input id="buyerGst" placeholder="GST number"></div>
+<div class="field"><label>Address</label><textarea id="buyerAddress" placeholder="Billing address"></textarea></div>
+<div class="field"><label>State / State code</label><input id="buyerState" placeholder="Gujarat (Code: 24)"></div>
+</div>
+<div class="actions"><button class="secondary" id="saveCustomerFromInvoice">Save customer</button></div>
+</div>
+<div class="panel">
+<div class="toolbar"><h2>Items / goods</h2><button id="addItemBtn">+ Add item</button></div>
+<div class="table-wrap"><table id="itemsInput"><thead><tr><th>Description / size</th><th>HSN</th><th>Bundles</th><th>Qty / Kgs</th><th>Rate (₹)</th><th>Amount (₹)</th><th></th></tr></thead><tbody></tbody></table></div>
+<div class="grid" style="margin-top:12px">
+<div class="field"><label>Freight / other charges (₹)</label><input id="freight" type="number" min="0" step=".01" value="0"></div>
+<div class="field"><label>GST treatment</label><select id="taxMode"><option value="intra">CGST + SGST (intra-state)</option><option value="inter">IGST (inter-state)</option><option value="none">No GST</option></select></div>
+<div class="field"><label>GST rate (%)</label><input id="gstRate" type="number" min="0" step=".01" value="18"></div>
+<div class="field"><label>Round off (₹)</label><input id="roundOff" type="number" step=".01" value="0"></div>
+</div>
+<p class="muted">Choose CGST + SGST when supply is within the same state, or IGST for inter-state supply. Confirm the applicable GST rate and treatment with your tax adviser.</p>
+</div>
+<div class="panel">
+<h2>Totals</h2><div class="grid">
+<div class="stat"><div class="muted">Taxable value</div><strong id="taxableDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">GST amount</div><strong id="gstDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">Grand total</div><strong id="grandDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">Amount in words</div><strong id="wordsDisplay">Zero Rupees Only</strong></div>
+</div>
+<div class="actions"><button id="saveInvoiceBtn">Save invoice to history</button><button class="secondary" id="previewBtn2">Preview / Print</button></div>
+<p class="muted">Invoices and records are stored in this browser on this device. Export/backup is recommended; clearing browser data may erase them.</p>
+</div>
+</section>
+
+<section id="previewTab" class="tab">
+<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button id="printBtn">Print / Save PDF</button></div></div>
+<div id="invoicePaper" class="invoice-paper"></div>
+</section>
+
+<section id="customersTab" class="tab">
+<div class="panel"><h2>Customer management</h2><div class="grid two">
+<div><label>Customer name</label><input id="cName"></div><div><label>GSTIN</label><input id="cGst"></div>
+<div><label>Address</label><textarea id="cAddress"></textarea></div><div><label>State / code</label><input id="cState"></div></div>
+<div class="actions"><button id="saveCustomerBtn">Save customer</button><button class="secondary" id="clearCustomerBtn">Clear</button></div></div>
+<div class="panel"><div class="table-wrap"><table id="customerTable"><thead><tr><th>Name</th><th>GSTIN</th><th>Address</th><th>State</th><th></th></tr></thead><tbody></tbody></table></div></div>
+</section>
+
+<section id="productsTab" class="tab">
+<div class="panel"><h2>Product management</h2><div class="grid">
+<div><label>Product / description</label><input id="pName"></div><div><label>HSN code</label><input id="pHsn"></div>
+<div><label>Unit</label><input id="pUnit" placeholder="Kgs / Nos / Bundles"></div><div><label>Rate (₹)</label><input id="pRate" type="number" min="0" step=".01"></div>
+</div><div class="actions"><button id="saveProductBtn">Save product</button><button class="secondary" id="clearProductBtn">Clear</button></div></div>
+<div class="panel"><div class="table-wrap"><table id="productTable"><thead><tr><th>Product</th><th>HSN</th><th>Unit</th><th>Rate</th><th></th></tr></thead><tbody></tbody></table></div></div>
+</section>
+
+<section id="historyTab" class="tab">
+<div class="panel"><div class="toolbar"><h2>Invoice history</h2><div class="row"><button class="secondary" id="exportDataBtn">Export backup (JSON)</button><label class="btn" for="importData" style="margin:0">Import backup</label><input id="importData" type="file" accept="application/json" class="hidden"></div></div>
+<div class="table-wrap"><table id="historyTable"><thead><tr><th>Invoice No.</th><th>Date</th><th>Customer</th><th>Grand total</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+</div></section>
+
+<section id="settingsTab" class="tab">
+<div class="panel"><h2>Company / seller settings</h2><p class="muted">These fields are editable. The initial values are transcribed from your reference invoice; verify them before issuing a tax invoice.</p>
+<div class="grid two">
+<div><label>Company name</label><input id="sName"></div><div><label>Phone numbers</label><input id="sPhone"></div>
+<div><label>Address</label><textarea id="sAddress"></textarea></div><div><label>GSTIN</label><input id="sGst"></div>
+<div><label>PAN</label><input id="sPan"></div><div><label>Authorised signatory</label><input id="sSign" placeholder="Name / designation"></div>
+<div><label>Bank name</label><input id="sBank"></div><div><label>Branch</label><input id="sBranch"></div>
+<div><label>Account number</label><input id="sAccount"></div><div><label>IFSC</label><input id="sIfsc"></div>
+<div><label>Default GST rate (%)</label><input id="sRate" type="number" min="0" step=".01"></div><div><label>Default state</label><input id="sState"></div>
+</div><div class="actions"><button id="saveSettingsBtn">Save company settings</button></div></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const STORE='royalEnterpriseInvoiceAppV1';
+const defaultData={
+ settings:{name:'Royal Enterprise',phone:'98250 37034 / 97129 37034',address:'00081/1/A/1/1, Ameri Compound, Nr. Ruby Photo Studio, Ram Rahim Tekra, B/H. Calico Mill, Behrampura, Ahmedabad - 380022',gst:'24ABJPR4452K1ZC',pan:'ABJPR4452K',bank:'Kotak Mahindra Bank',branch:'Narayan Nagar Road, Paldi',account:'7612625683',ifsc:'KKBK0002589',rate:18,state:'Gujarat (Code: 24)',sign:'Authorised Signatory'},
+ customers:[],products:[],invoices:[],nextNumber:678
+};
+let db=loadDB(), items=[];
+function loadDB(){try{return {...structuredClone(defaultData),...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch(e){return structuredClone(defaultData)}}
+function persist(){localStorage.setItem(STORE,JSON.stringify(db))}
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function words(n){
+ n=Math.round(Number(n)||0);if(n===0)return 'Zero Rupees Only';
+ const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+ function under(x){return x<20?a[x]:b[Math.floor(x/10)]+(x%10?' '+a[x%10]:'')}
+ function chunk(x){let s='';if(x>=100){s+=a[Math.floor(x/100)]+' Hundred';x%=100;if(x)s+=' ';}return s+under(x)}
+ let parts=[];const units=[[10000000,'Crore'],[100000,'Lakh'],[1000,'Thousand'],[1,'']];
+ for(const [v,name] of units){if(n>=v){let q=Math.floor(n/v);parts.push(chunk(q)+(name?' '+name:''));n%=v}}
+ return parts.join(' ')+' Rupees Only';
+}
+function getTotals(){
+ const subtotal=items.reduce((s,x)=>s+(Number(x.qty)||0)*(Number(x.rate)||0),0);
+ const freight=Math.max(0,Number($('freight').value)||0),taxable=subtotal+freight,rate=Math.max(0,Number($('gstRate').value)||0);
+ const mode=$('taxMode').value,gst=mode==='none'?0:taxable*rate/100;
+ const cgst=mode==='intra'?gst/2:0,sgst=mode==='intra'?gst/2:0,igst=mode==='inter'?gst:0;
+ const round=Number($('roundOff').value)||0,total=taxable+gst+round;
+ return {subtotal,freight,taxable,rate,mode,gst,cgst,sgst,igst,round,total};
+}
+function updateTotals(){const t=getTotals();$('taxableDisplay').textContent=money(t.taxable);$('gstDisplay').textContent=money(t.gst);$('grandDisplay').textContent=money(t.total);$('wordsDisplay').textContent=words(t.total)}
+function addItem(x={}){items.push({desc:x.desc||'',hsn:x.hsn||'',bundles:x.bundles||'',qty:x.qty??1,rate:x.rate??0,unit:x.unit||''});renderItems()}
+function renderItems(){
+ $('itemsInput').querySelector('tbody').innerHTML=items.map((x,i)=>`<tr>
+ <td><input data-i="${i}" data-k="desc" value="${esc(x.desc)}" placeholder="Description / size"></td>
+ <td><input data-i="${i}" data-k="hsn" value="${esc(x.hsn)}"></td>
+ <td><input data-i="${i}" data-k="bundles" value="${esc(x.bundles)}"></td>
+ <td><input data-i="${i}" data-k="qty" type="number" min="0" step=".001" value="${x.qty}"></td>
+ <td><input data-i="${i}" data-k="rate" type="number" min="0" step=".01" value="${x.rate}"></td>
+ <td class="right">${money((Number(x.qty)||0)*(Number(x.rate)||0))}</td><td><button class="danger" data-remove="${i}" type="button">×</button></td></tr>`).join('');
+}
+function nextInvoice(){ $('invoiceNo').value='RE/'+new Date().getFullYear()+'/'+String(db.nextNumber).padStart(4,'0');$('challanNo').value='';$('invoiceDate').value=new Date().toISOString().slice(0,10);$('placeSupply').value=db.settings.state||'Gujarat';$('buyerName').value='';$('buyerGst').value='';$('buyerAddress').value='';$('buyerState').value='';$('freight').value=0;$('roundOff').value=0;$('taxMode').value='intra';$('gstRate').value=db.settings.rate||18;items=[];addItem();updateTotals()}
+function customerList(){ $('customerNames').innerHTML=db.customers.map(c=>`<option value="${esc(c.name)}">`).join('');$('customerTable').querySelector('tbody').innerHTML=db.customers.map((c,i)=>`<tr><td>${esc(c.name)}</td><td>${esc(c.gst||'')}</td><td>${esc(c.address||'')}</td><td>${esc(c.state||'')}</td><td><button class="secondary" data-cedit="${i}">Edit</button> <button class="danger" data-cdel="${i}">Delete</button></td></tr>`).join('')}
+function productList(){ $('productTable').querySelector('tbody').innerHTML=db.products.map((p,i)=>`<tr><td>${esc(p.name)}</td><td>${esc(p.hsn)}</td><td>${esc(p.unit)}</td><td>${money(p.rate)}</td><td><button class="secondary" data-padd="${i}">Add to invoice</button> <button class="danger" data-pdel="${i}">Delete</button></td></tr>`).join('')}
+function readSettings(){const s={};[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>s[k]=$(id).value);return s}
+function fillSettings(){const s=db.settings;[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>$(id).value=s[k]??'')}
+function invoiceData(){const t=getTotals();return {no:$('invoiceNo').value,challan:$('challanNo').value,date:$('invoiceDate').value,place:$('placeSupply').value,buyer:{name:$('buyerName').value,gst:$('buyerGst').value,address:$('buyerAddress').value,state:$('buyerState').value},items:structuredClone(items),totals:t,words:words(t.total),savedAt:new Date().toISOString()}}
+function renderPreview(inv=invoiceData()){
+ const s=db.settings,t=inv.totals;
+ $('invoicePaper').innerHTML=`
+ <div class="inv-top"><div class="tiny">TAX INVOICE · Subject to ${esc(s.state||'Seller jurisdiction')} Jurisdiction</div><div class="brand">${esc(s.name)}</div><div><b>Authorised Dealers of:</b> Craft Board, Kappa Board, Duplex Board, Stiff Board, White Mill Board, Grey Board &amp; All Type of Boards</div><div class="tiny">${esc(s.address)}<br>Phone: ${esc(s.phone)}</div></div>
+ <div class="inv-meta"><div class="inv-box"><b>M/s.</b><br><strong>${esc(inv.buyer.name)}</strong><br>${esc(inv.buyer.address).replace(/\n/g,'<br>')}<br>${esc(inv.buyer.state)}<br><b>Buyer's GST No.:</b> ${esc(inv.buyer.gst)}</div><div class="inv-box"><b>Bill No.:</b> <span style="float:right">${esc(inv.no)}</span><br><b>Challan No.:</b> <span style="float:right">${esc(inv.challan)}</span><br><b>Date:</b> <span style="float:right">${esc(inv.date)}</span><br><b>Place of Supply:</b> ${esc(inv.place)}</div></div>
+ <table class="inv-table"><thead><tr><th>DESCRIPTION</th><th>HSN CODE</th><th>BUNDLES</th><th>QTY / KGS.</th><th>RATE</th><th>AMOUNT</th></tr></thead><tbody>${inv.items.map(x=>`<tr><td class="desc"><b>${esc(x.desc)}</b></td><td>${esc(x.hsn)}</td><td>${esc(x.bundles)}</td><td class="right">${esc(x.qty)} ${esc(x.unit)}</td><td class="right">${money(x.rate)}</td><td class="right">${money((Number(x.qty)||0)*(Number(x.rate)||0))}</td></tr>`).join('')}
+ <tr><td colspan="5" class="right"><b>Freight / Other charges</b></td><td class="right">${money(t.freight)}</td></tr></tbody></table>
+ <div class="inv-bottom"><div><div class="bank"><b>Company's Bank Details</b><br>Bank Name: ${esc(s.bank)}<br>Branch: ${esc(s.branch)}<br>A/c. No.: ${esc(s.account)}<br>IFSC Code: ${esc(s.ifsc)}<br><br><b>GST No.:</b> ${esc(s.gst)}<br><b>PAN No.:</b> ${esc(s.pan)}</div><div class="terms" style="margin-top:7px"><b>Terms:</b><br>Interest / late payment terms and delivery complaints policy: Please confirm and edit according to your business terms.</div></div>
+ <div class="totals"><table><tr><td>Taxable Total</td><td class="right">${money(t.taxable)}</td></tr>${t.mode==='intra'?`<tr><td>CGST (${t.rate/2}%)</td><td class="right">${money(t.cgst)}</td></tr><tr><td>SGST (${t.rate/2}%)</td><td class="right">${money(t.sgst)}</td></tr>`:t.mode==='inter'?`<tr><td>IGST (${t.rate}%)</td><td class="right">${money(t.igst)}</td></tr>`:`<tr><td>GST</td><td class="right">${money(0)}</td></tr>`}<tr><td>Round Off</td><td class="right">${money(t.round)}</td></tr><tr class="grand"><td>GRAND TOTAL</td><td class="right">${money(t.total)}</td></tr></table><div class="signature"><b>For, ${esc(s.name)}</b><br><br><br>${esc(s.sign||'Authorised Signatory')}</div></div></div>
+ <div class="words"><b>Rupees:</b> ${esc(inv.words)}</div>`;
+}
+function showTab(id){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));if(id==='previewTab')renderPreview();if(id==='historyTab')renderHistory()}
+function saveInvoice(){const inv=invoiceData();if(!inv.buyer.name.trim()){alert('Please enter the customer name.');return}const existing=db.invoices.findIndex(x=>x.no===inv.no);if(existing>=0)db.invoices[existing]=inv;else{db.invoices.push(inv);db.nextNumber++}persist();renderHistory();alert('Invoice saved in this browser.');}
+function renderHistory(){$('historyTable').querySelector('tbody').innerHTML=db.invoices.slice().reverse().map((x,ri)=>{const i=db.invoices.length-1-ri;return `<tr><td>${esc(x.no)}</td><td>${esc(x.date)}</td><td>${esc(x.buyer.name)}</td><td>${money(x.totals.total)}</td><td><button class="secondary" data-hview="${i}">View</button> <button class="secondary" data-hedit="${i}">Edit</button> <button class="danger" data-hdel="${i}">Delete</button></td></tr>`}).join('')}
+function loadInvoice(i){const x=db.invoices[i];$('invoiceNo').value=x.no;$('challanNo').value=x.challan;$('invoiceDate').value=x.date;$('placeSupply').value=x.place;$('buyerName').value=x.buyer.name;$('buyerGst').value=x.buyer.gst;$('buyerAddress').value=x.buyer.address;$('buyerState').value=x.buyer.state;$('freight').value=x.totals.freight;$('taxMode').value=x.totals.mode;$('gstRate').value=x.totals.rate;$('roundOff').value=x.totals.round;items=structuredClone(x.items);renderItems();updateTotals()}
+function saveCustomer(name,gst,address,state){if(!name.trim())return alert('Enter customer name');let i=db.customers.findIndex(c=>c.name.toLowerCase()===name.trim().toLowerCase());let c={name:name.trim(),gst,address,state};if(i>=0)db.customers[i]=c;else db.customers.push(c);persist();customerList();alert('Customer saved.')}
+function clearCustomerForm(){['cName','cGst','cAddress','cState'].forEach(id=>$(id).value='')}
+function clearProductForm(){['pName','pHsn','pUnit','pRate'].forEach(id=>$(id).value='')}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+$('newInvoiceBtn').onclick=nextInvoice;$('previewBtn').onclick=$('previewBtn2').onclick=()=>showTab('previewTab');$('backEditBtn').onclick=()=>showTab('editorTab');$('printBtn').onclick=()=>window.print();
+$('addItemBtn').onclick=()=>addItem();$('itemsInput').addEventListener('input',e=>{const el=e.target;if(el.dataset.i!==undefined){items[+el.dataset.i][el.dataset.k]=el.value;
+const row=el.closest('tr');const x=items[+el.dataset.i];
+row.children[5].textContent=money((Number(x.qty)||0)*(Number(x.rate)||0));updateTotals()}});
+$('itemsInput').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){items.splice(+e.target.dataset.remove,1);renderItems();updateTotals()}});
+['freight','gstRate','roundOff','taxMode'].forEach(id=>$(id).addEventListener('input',updateTotals));
+$('saveInvoiceBtn').onclick=saveInvoice;
+$('saveCustomerFromInvoice').onclick=()=>saveCustomer($('buyerName').value,$('buyerGst').value,$('buyerAddress').value,$('buyerState').value);
+$('saveCustomerBtn').onclick=()=>{saveCustomer($('cName').value,$('cGst').value,$('cAddress').value,$('cState').value);clearCustomerForm()};
+$('clearCustomerBtn').onclick=clearCustomerForm;
+$('customerTable').addEventListener('click',e=>{let i=e.target.dataset.cdel;if(i!==undefined){if(confirm('Delete this customer?')){db.customers.splice(+i,1);persist();customerList()}}i=e.target.dataset.cedit;if(i!==undefined){let c=db.customers[+i];$('cName').value=c.name;$('cGst').value=c.gst;$('cAddress').value=c.address;$('cState').value=c.state;showTab('customersTab')}});
+$('saveProductBtn').onclick=()=>{let p={name:$('pName').value.trim(),hsn:$('pHsn').value,unit:$('pUnit').value,rate:Number($('pRate').value)||0};if(!p.name)return alert('Enter product description');db.products.push(p);persist();productList();clearProductForm()};
+$('clearProductBtn').onclick=clearProductForm;
+$('productTable').addEventListener('click',e=>{let i=e.target.dataset.pdel;if(i!==undefined){db.products.splice(+i,1);persist();productList()}i=e.target.dataset.padd;if(i!==undefined){let p=db.products[+i];addItem({desc:p.name,hsn:p.hsn,unit:p.unit,rate:p.rate,qty:1});showTab('editorTab')}});
+$('saveSettingsBtn').onclick=()=>{db.settings=readSettings();persist();alert('Company settings saved.')};
+$('historyTable').addEventListener('click',e=>{let i=e.target.dataset.hview;if(i!==undefined){loadInvoice(+i);showTab('previewTab')}i=e.target.dataset.hedit;if(i!==undefined){loadInvoice(+i);showTab('editorTab')}i=e.target.dataset.hdel;if(i!==undefined&&confirm('Delete this invoice from history?')){db.invoices.splice(+i,1);persist();renderHistory()}});
+$('exportDataBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='royal-enterprise-invoice-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('importData').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(!data.settings||!Array.isArray(data.invoices)||!Array.isArray(data.customers)||!Array.isArray(data.products))throw Error();db=data;persist();fillSettings();customerList();productList();renderHistory();alert('Backup imported.')}catch(err){alert('Invalid backup file.')}e.target.value=''};
+$('buyerName').addEventListener('change',()=>{const c=db.customers.find(x=>x.name.toLowerCase()===$('buyerName').value.toLowerCase());if(c){$('buyerGst').value=c.gst;$('buyerAddress').value=c.address;$('buyerState').value=c.state}});
+fillSettings();customerList();productList();nextInvoice();
+</script>
+</body></html>
