@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Royal Enterprise | GST Invoice Generator</title>
+<style>
+:root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
+header{background:#123f66;color:white;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}header small{opacity:.85}
+nav{display:flex;gap:7px;flex-wrap:wrap;padding:12px 18px;background:white;border-bottom:1px solid #d4e0e8}
+button,.btn{border:0;border-radius:6px;padding:9px 13px;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#e7eef4;color:#173c58;border:1px solid #c5d5e1}button.danger{background:#a83232}button:disabled{opacity:.5;cursor:not-allowed}
+nav button.active{background:#123f66;color:#fff}
+main{max-width:1440px;margin:18px auto;padding:0 16px}.tab{display:none}.tab.active{display:block}
+.panel{background:white;border:1px solid #d6e1e9;border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #163b5510}
+h2{font-size:18px;margin:0 0 14px;color:#174d76}h3{font-size:15px;margin:0 0 10px;color:#174d76}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+label{display:block;font-size:12px;font-weight:700;color:#435766;margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px;border:1px solid #c7d5df;border-radius:5px;background:#fff;color:#1c2d39;font:inherit}
+textarea{min-height:62px;resize:vertical}.field{min-width:0}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding:7px;text-align:left;vertical-align:middle}th{background:#e3eff7;color:#183f5c;font-size:12px}td input{min-width:65px;padding:6px}
+.table-wrap{overflow:auto}.right{text-align:right}.muted{color:var(--muted);font-size:12px}.stat{background:#f1f7fb;border:1px solid #d7e5ee;border-radius:8px;padding:12px}
+.invoice-paper{background:white;max-width:900px;margin:0 auto;padding:22px;border:3px double #28638d;color:#172b3a}
+.inv-top{border:1px solid #28638d;padding:9px;margin-bottom:8px;text-align:center}.inv-top .tiny{font-size:11px;font-weight:bold}.brand{font-size:34px;letter-spacing:1px;color:#175b91;font-weight:900;margin:2px}.inv-meta{display:grid;grid-template-columns:1.35fr 1fr;gap:7px;margin:8px 0}
+.inv-box{border:1px solid #28638d;padding:8px;min-height:90px}.inv-box strong{color:#153f60}.inv-table th{text-align:center}.inv-table td{height:38px}.inv-table .desc{min-width:180px}.inv-bottom{display:grid;grid-template-columns:1.35fr 1fr;gap:8px;margin-top:8px}.bank,.terms,.totals{border:1px solid #28638d;padding:8px}.totals table td{height:29px}.totals table td:first-child{font-weight:bold}.grand{font-size:17px;font-weight:900;background:#e4eff7}.words{border:1px solid #28638d;padding:9px;margin-top:8px;min-height:40px;font-weight:bold}.signature{text-align:right;margin-top:16px;min-height:52px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+#historyTable td,#customerTable td,#productTable td{font-size:13px}
+.hidden{display:none!important}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.inv-meta,.inv-bottom{grid-template-columns:1fr}.invoice-paper{padding:10px}}
+@media(max-width:520px){.grid,.grid.two{grid-template-columns:1fr}header{padding:12px}.brand{font-size:26px}}
+@media print{
+ @page{size:A4;margin:10mm}
+ body{background:white;font-size:11px}
+ header,nav,.no-print,#editorTab,#customersTab,#productsTab,#historyTab,#settingsTab,.toolbar{display:none!important}
+ main{margin:0;padding:0;max-width:none}.tab{display:none!important}#previewTab{display:block!important}
+ .invoice-paper{border:2px double #28638d;max-width:none;padding:12px;box-shadow:none}
+ .inv-top,.inv-box,.inv-table th,.inv-bottom,.bank,.terms,.totals,.words{break-inside:avoid}
+ button{display:none!important}
+}
+
+/* Google Drive integration panel */
+#driveStatus{min-height:38px;display:flex;align-items:center;font-weight:700}
+#googleDrivePanel .actions{margin-top:10px}
+/* Royal Enterprise reference-sheet refinement */
+.invoice-paper{width:100%;max-width:790px;min-height:1120px;margin:0 auto;padding:8px;border:3px double #1596c7;color:#151515;font-family:Georgia,"Times New Roman",serif;font-size:13px;box-shadow:0 2px 12px #173b5518}
+.inv-top{border:2px solid #1596c7;padding:5px 8px 7px;margin:0 0 3px;text-align:center;position:relative;background:#fff}
+.inv-headline{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:bold;padding:0 5px 3px}
+.inv-brandband{display:grid;grid-template-columns:78px 1fr 175px;align-items:center;background:linear-gradient(180deg,#f7fcff,#a8def4 48%,#f4fbff);min-height:57px;padding:2px 7px}
+.inv-logo{width:58px;height:58px;border:2px solid #1596c7;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1596c7;font:bold 23px Georgia;margin:auto}
+.brand{font-family:Georgia,"Times New Roman",serif;font-size:clamp(25px,4.3vw,43px);letter-spacing:.2px;color:#0785c1;font-weight:900;margin:0;white-space:nowrap}
+.inv-phone{font:bold 16px/1.05 Georgia;text-align:right}
+.inv-dealers{font-size:15px;font-weight:bold;padding:5px 0 3px}
+.inv-address{border-top:2px solid #1596c7;padding:6px 0 2px;font:bold 12px Arial,sans-serif}
+.inv-meta{display:grid;grid-template-columns:2.05fr 1fr;gap:4px;margin:3px 0}
+.inv-box{border:2px solid #1596c7;padding:8px 10px;min-height:128px;position:relative}
+.inv-buyer{display:flex;flex-direction:column;justify-content:space-between}
+.inv-buyer-top{line-height:1.5}.inv-buyer-gst{font-weight:bold}
+.inv-bill{font-size:15px;line-height:2.6;font-weight:bold}
+.inv-billrow{display:flex;justify-content:space-between;border-bottom:1px solid #d4e9f2}
+.inv-billrow:last-child{border:0}
+.inv-table{width:100%;border-collapse:separate;border-spacing:3px 2px;table-layout:fixed}
+.inv-table th{background:#c9e7f6;border:2px solid #1596c7;text-align:center;font-size:15px;line-height:1.05;padding:7px 3px}
+.inv-table td{border-left:2px solid #1596c7;border-right:2px solid #1596c7;border-top:0;border-bottom:0;padding:5px 6px;height:40px;overflow-wrap:anywhere}
+.inv-table tbody tr:last-child td{border-bottom:2px solid #1596c7}
+.inv-table .desc{width:35%;min-width:0}
+.inv-table th:nth-child(2){width:9%}.inv-table th:nth-child(3){width:11%}.inv-table th:nth-child(4){width:12%}.inv-table th:nth-child(5){width:15%}.inv-table th:nth-child(6){width:18%}
+.inv-table .line-items-empty{height:390px}
+.inv-footer-grid{display:grid;grid-template-columns:2.05fr 1fr;gap:3px;margin-top:0}
+.inv-left-footer,.inv-right-footer{display:flex;flex-direction:column;gap:3px}
+.inv-bank{border:2px solid #1596c7;padding:8px;min-height:92px;font-size:13px;line-height:1.45}
+.inv-vehicle{border:2px solid #1596c7;padding:6px;min-height:29px;font-weight:bold}
+.inv-gstpan{border:2px solid #1596c7;padding:7px;min-height:65px;font-weight:bold;line-height:1.45}
+.inv-words{border:2px solid #1596c7;padding:7px;min-height:57px;font-weight:bold}
+.inv-words-title{display:block;margin-bottom:4px}
+.inv-terms-sign{display:grid;grid-template-columns:2.05fr 1fr;gap:3px;margin-top:3px}
+.inv-terms{border:2px solid #1596c7;padding:7px;font:12px/1.25 Arial,sans-serif;min-height:85px}
+.inv-sign{border:2px solid #1596c7;padding:9px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;color:#0785c1;font-weight:bold}
+.inv-sign .sign-title{font-size:15px}.inv-sign .sign-label{font-size:12px}
+.inv-totals{border-collapse:separate;border-spacing:0 3px;width:100%}
+.inv-totals td{border:2px solid #1596c7;padding:7px;font-size:14px;height:34px}
+.inv-totals td:first-child{font-weight:bold;width:58%}
+.inv-totals .grand td{font-size:16px;font-weight:900}
+.item-desc-select{width:100%;min-width:145px}
+.item-size-input{width:100%;margin-top:4px;min-width:145px}
+.item-custom-input{width:100%;margin-top:4px}
+@media(max-width:650px){.inv-brandband{grid-template-columns:48px 1fr 100px}.inv-logo{width:42px;height:42px;font-size:17px}.inv-phone{font-size:11px}.brand{font-size:clamp(17px,5vw,28px)}.inv-dealers{font-size:12px}.inv-address{font-size:10px}.inv-meta,.inv-footer-grid,.inv-terms-sign{grid-template-columns:1fr}.invoice-paper{min-height:0;padding:5px}.inv-table th{font-size:10px}.inv-table td{font-size:10px;padding:3px}}
+@media print{
+ @page{size:A4 portrait;margin:5mm}
+ html,body{width:100%;margin:0!important;padding:0!important;background:#fff!important}
+ main{width:100%;max-width:none;margin:0;padding:0}
+ .invoice-paper{width:100%;max-width:none;min-height:0;height:286mm;padding:5px;border:3px double #1596c7;box-shadow:none;font-size:10.5px;display:flex;flex-direction:column}
+ .inv-top{padding:3px 6px 4px;margin-bottom:2px}.inv-brandband{min-height:47px;grid-template-columns:65px 1fr 145px}
+ .inv-logo{width:48px;height:48px;font-size:20px}.brand{font-size:34px}.inv-phone{font-size:14px}
+ .inv-dealers{font-size:12px;padding:3px 0}.inv-address{font-size:9.5px;padding:4px 0 1px}
+ .inv-meta{margin:2px 0;gap:3px}.inv-box{min-height:100px;padding:5px 8px}.inv-bill{font-size:12px;line-height:2.4}
+ .inv-table{border-spacing:2px 1px;flex:1}.inv-table th{font-size:12px;padding:5px 2px}.inv-table td{font-size:10px;padding:3px 4px}.inv-table .line-items-empty{height:auto}
+ .inv-footer-grid{gap:2px}.inv-left-footer,.inv-right-footer{gap:2px}
+ .inv-bank{min-height:75px;padding:5px;font-size:10px;line-height:1.3}.inv-vehicle{min-height:22px;padding:4px;font-size:10px}
+ .inv-gstpan{min-height:48px;padding:5px;font-size:10px}.inv-words{min-height:42px;padding:5px;font-size:10px}
+ .inv-terms-sign{margin-top:2px;gap:2px}.inv-terms{min-height:67px;padding:5px;font-size:9px}
+ .inv-sign{padding:6px}.inv-sign .sign-title{font-size:12px}.inv-sign .sign-label{font-size:9px}
+ .inv-totals{border-spacing:0 2px}.inv-totals td{height:26px;padding:4px;font-size:11px}.inv-totals .grand td{font-size:13px}
+}
+
+
+/* Administrator authentication */
+#adminAuthOverlay{position:fixed;inset:0;z-index:9999;background:rgba(9,28,43,.72);display:none;align-items:center;justify-content:center;padding:18px}
+#adminAuthOverlay.show{display:flex}
+.auth-card{background:#fff;width:min(100%,430px);border-radius:14px;padding:25px;box-shadow:0 18px 60px #0005;color:#173247}
+.auth-card h2{margin:0 0 8px}.auth-card p{line-height:1.5}
+.auth-logo{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#e5f3fb;color:#087eb8;font-size:25px;font-weight:900;margin-bottom:14px}
+#adminAuthError{color:#a83232;font-weight:700;min-height:20px}
+#adminAuthBusy{color:#5e6d78;font-size:12px}
+#adminSessionBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+#adminSessionBar .stat{flex:1;min-width:180px}
+#adminLogoutBtn{white-space:nowrap}
+
+
+/* Version 4: role-based login and full Royal Enterprise invoice grid */
+.login-overlay{position:fixed;inset:0;z-index:10000;background:rgba(9,28,43,.82);display:flex;align-items:center;justify-content:center;padding:18px}
+.login-card{width:min(100%,400px);background:#fff;border-radius:14px;padding:26px;box-shadow:0 18px 60px #0007;color:#173247}
+.login-card h2{text-align:center;margin:8px 0 4px}.login-card label{display:block;margin:12px 0 5px;font-weight:700}
+.login-card input{width:100%;padding:11px;border:1px solid #b8cad7;border-radius:7px;font:inherit}
+.login-logo{display:flex;justify-content:center;margin-bottom:8px}.login-logo img{width:86px;height:86px;object-fit:contain}
+.login-error{color:#b42318;font-weight:700;min-height:20px;margin:8px 0 0}.login-hint{text-align:center;font-size:12px;line-height:1.45;margin-top:12px}
+.header-session{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;flex-wrap:wrap}.header-session button{background:#e7eef4;color:#173c58;border:1px solid #c5d5e1}
+.inv-logo{width:72px;height:72px;border:0;border-radius:0;background:transparent;display:flex;align-items:center;justify-content:center;margin:auto}
+.inv-logo img{width:100%;height:100%;object-fit:contain}
+.signature-line{width:72%;height:34px;margin:5px auto 2px;border-bottom:1px solid #7893a6}
+.inv-table{border-collapse:collapse!important;border-spacing:0!important;width:100%;table-layout:fixed}
+.inv-table th,.inv-table td{border:2px solid #1596c7!important}
+.inv-table th{background:#c9e7f6}
+.inv-table td{height:38px;vertical-align:top}
+.inv-table tbody tr:last-child td{border-bottom:2px solid #1596c7!important}
+.inv-table .line-items-empty td{height:300px;border-top:2px solid #1596c7!important}
+.item-desc-select,.item-hsn-select,.item-basis-select{width:100%;min-width:90px}
+.item-size-input{width:100%;margin-top:4px;min-width:120px}
+#itemsInput input,#itemsInput select{box-sizing:border-box;padding:6px 4px}
+#itemsInput td{vertical-align:top}
+#itemsInput .right{text-align:right}
+@media(max-width:650px){.header-session{font-size:12px}.login-card{padding:20px}.inv-logo{width:52px;height:52px}}
+@media print{.inv-table th,.inv-table td{border:1.5px solid #1596c7!important}}
+
+</style>
+</head>
+<body>
+<header><div><h1>Royal Enterprise</h1><small>GST Tax Invoice Generator · INR</small></div><div class="header-session"><span id="loggedInLabel">Not signed in</span><button id="logoutBtn" class="secondary">Logout</button></div></header>
+
+<div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+ <form id="loginForm" class="login-card">
+  <div class="login-logo"><img src="royal-enterprise-logo.webp" alt="Royal Enterprise logo"></div>
+  <h2 id="loginTitle">Royal Enterprise Login</h2>
+  <p class="muted">Sign in to access invoice management.</p>
+  <label for="loginUsername">Username</label>
+  <input id="loginUsername" name="username" autocomplete="username" required placeholder="Enter username">
+  <label for="loginPassword">Password</label>
+  <input id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="Enter password">
+  <button type="submit" style="width:100%;margin-top:14px">Login</button>
+  <p id="loginError" class="login-error" role="alert"></p>
+  <p class="muted login-hint">Administrator access includes Company Settings. Staff can manage invoices, customers and products.</p>
+ </form>
+</div>
+
+<nav class="no-print">
+<button class="active" data-tab="editorTab">Create Invoice</button>
+<button data-tab="previewTab">Invoice Preview</button>
+<button data-tab="customersTab">Customers</button>
+<button data-tab="productsTab">Products</button>
+<button data-tab="historyTab">Invoice History</button>
+<button id="settingsNavBtn" data-tab="settingsTab" class="hidden">Company Settings</button>
+</nav>
+<main>
+<section id="editorTab" class="tab active">
+<div class="panel">
+<div class="toolbar"><h2>Invoice details</h2><div class="row"><button class="secondary" id="newInvoiceBtn">New invoice</button><button id="previewBtn">Preview invoice →</button></div></div>
+<div class="grid">
+<div class="field"><label>Invoice number</label><input id="invoiceNo" readonly></div>
+<div class="field"><label>Challan number</label><input id="challanNo" placeholder="Optional"></div>
+<div class="field"><label>Invoice date</label><input id="invoiceDate" type="date"></div>
+<div class="field"><label>Place of supply / State</label><input id="placeSupply" placeholder="Gujarat"></div>
+</div>
+</div>
+<div class="panel">
+<h2>Buyer details</h2>
+<div class="grid two">
+<div class="field"><label>Customer name</label><input id="buyerName" list="customerNames" placeholder="Customer / business name"><datalist id="customerNames"></datalist></div>
+<div class="field"><label>GSTIN</label><input id="buyerGst" placeholder="GST number"></div>
+<div class="field"><label>Address</label><textarea id="buyerAddress" placeholder="Billing address"></textarea></div>
+<div class="field"><label>State / State code</label><input id="buyerState" placeholder="Gujarat (Code: 24)"></div>
+</div>
+<div class="actions"><button class="secondary" id="saveCustomerFromInvoice">Save customer</button></div>
+</div>
+<div class="panel">
+<div class="toolbar"><h2>Items / goods</h2><button id="addItemBtn">+ Add item</button></div>
+<div class="table-wrap"><table id="itemsInput"><thead><tr><th>Description / Size</th><th>HSN</th><th>Basis</th><th>Quantity</th><th>Rate (₹)</th><th>Amount (₹)</th><th></th></tr></thead><tbody></tbody></table></div>
+<div class="grid" style="margin-top:12px">
+<div class="field"><label>Freight / other charges (₹)</label><input id="freight" type="number" min="0" step=".01" value="0"></div>
+<div class="field"><label>GST treatment</label><select id="taxMode"><option value="intra">CGST + SGST (intra-state)</option><option value="inter">IGST (inter-state)</option><option value="none">No GST</option></select></div>
+<div class="field"><label>GST rate (%)</label><input id="gstRate" type="number" min="0" step=".01" value="18"></div>
+<div class="field"><label>Round off (₹)</label><input id="roundOff" type="number" step=".01" value="0" readonly></div>
+</div>
+<p class="muted">Choose CGST + SGST when supply is within the same state, or IGST for inter-state supply. Confirm the applicable GST rate and treatment with your tax adviser.</p>
+</div>
+<div class="panel">
+<h2>Totals</h2><div class="grid">
+<div class="stat"><div class="muted">Taxable value</div><strong id="taxableDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">GST amount</div><strong id="gstDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">Grand total</div><strong id="grandDisplay">₹0.00</strong></div>
+<div class="stat"><div class="muted">Amount in words</div><strong id="wordsDisplay">Zero Rupees Only</strong></div>
+</div>
+<div class="actions"><button id="saveInvoiceBtn">Save invoice to history</button><button class="secondary" id="previewBtn2">Preview / Print</button></div>
+<p class="muted">Invoices and records are stored in this browser on this device. Export/backup is recommended; clearing browser data may erase them.</p>
+</div>
+</section>
+
+<section id="previewTab" class="tab">
+<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button class="secondary" id="uploadDrivePreviewBtn">Save PDF + JSON to Drive</button><button id="printBtn">Print / Save PDF</button></div></div>
+<div id="invoicePaper" class="invoice-paper"></div>
+</section>
+
+<section id="customersTab" class="tab">
+<div class="panel"><h2>Customer management</h2><div class="grid two">
+<div><label>Customer name</label><input id="cName"></div><div><label>GSTIN</label><input id="cGst"></div>
+<div><label>Address</label><textarea id="cAddress"></textarea></div><div><label>State / code</label><input id="cState"></div></div>
+<div class="actions"><button id="saveCustomerBtn">Save customer</button><button class="secondary" id="clearCustomerBtn">Clear</button></div></div>
+<div class="panel"><div class="table-wrap"><table id="customerTable"><thead><tr><th>Name</th><th>GSTIN</th><th>Address</th><th>State</th><th></th></tr></thead><tbody></tbody></table></div></div>
+</section>
+
+<section id="productsTab" class="tab">
+<div class="panel"><h2>Product management</h2><div class="grid">
+<div><label>Product / description</label><select id="pName"></select></div><div><label>HSN code</label><select id="pHsn"></select></div>
+<div><label>Unit</label><input id="pUnit" placeholder="Kgs / Nos / Bundles"></div><div><label>Rate (₹)</label><input id="pRate" type="number" min="0" step=".01"></div>
+</div><div class="actions"><button id="saveProductBtn">Save product</button><button class="secondary" id="clearProductBtn">Clear</button></div></div>
+<div class="panel"><div class="table-wrap"><table id="productTable"><thead><tr><th>Product</th><th>HSN</th><th>Unit</th><th>Rate</th><th></th></tr></thead><tbody></tbody></table></div></div>
+</section>
+
+<section id="historyTab" class="tab">
+<div class="panel"><div class="toolbar"><h2>Invoice history</h2><div class="row"><button class="secondary" id="exportDataBtn">Export backup (JSON)</button><label class="btn" for="importData" style="margin:0">Import backup</label><input id="importData" type="file" accept="application/json" class="hidden"></div></div>
+<div class="table-wrap"><table id="historyTable"><thead><tr><th>Invoice No.</th><th>Date</th><th>Customer</th><th>Grand total</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+</div></section>
+
+<section id="settingsTab" class="tab">
+<div id="adminSessionBar"><div class="stat"><strong>Administrator access</strong><div class="muted">Only the administrator can edit these settings. Sessions end after 30 minutes of inactivity.</div></div></div>
+<div class="panel"><h2>Company / seller settings</h2><p class="muted">These fields are editable. The initial values are transcribed from your reference invoice; verify them before issuing a tax invoice.</p>
+<div class="grid two">
+<div><label>Company name</label><input id="sName"></div><div><label>Phone numbers</label><input id="sPhone"></div>
+<div><label>Address</label><textarea id="sAddress"></textarea></div><div><label>GSTIN</label><input id="sGst"></div>
+<div><label>PAN</label><input id="sPan"></div><div><label>Authorised signatory</label><input id="sSign" placeholder="Name / designation"></div>
+<div><label>Bank name</label><input id="sBank"></div><div><label>Branch</label><input id="sBranch"></div>
+<div><label>Account number</label><input id="sAccount"></div><div><label>IFSC</label><input id="sIfsc"></div>
+<div><label>Default GST rate (%)</label><input id="sRate" type="number" min="0" step=".01"></div><div><label>Default state</label><input id="sState"></div>
+</div><div class="actions"><button id="saveSettingsBtn">Save company settings</button></div></div>
+<div class="panel" id="googleDrivePanel">
+<h2>Google Drive integration</h2>
+<p class="muted">Connect your Google account to save invoice PDFs and JSON backups in year/month folders. The OAuth access token stays in memory and is not saved in browser storage.</p>
+<div class="grid two">
+ <div><label>Google OAuth 2.0 Client ID</label><input id="driveClientId" placeholder="1234567890-abc...apps.googleusercontent.com" autocomplete="off"></div>
+ <div><label>Connection status</label><div id="driveStatus" class="stat" role="status">Not configured</div></div>
+</div>
+<div class="actions">
+ <button id="saveDriveConfigBtn">Save Drive configuration</button>
+ <button id="connectDriveBtn">Connect Google Drive</button>
+ <button class="secondary" id="disconnectDriveBtn">Disconnect</button>
+</div>
+<p class="muted">Required permission: create and manage only files created or opened by this invoice app (drive.file). No Google client secret is used in this browser app.</p>
+</div>
+</section>
+</main>
+
+
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js" referrerpolicy="no-referrer"></script>
+<script>
+const $=id=>document.getElementById(id);
+
+// -------- Version 4 login and role permissions --------
+const ADMIN_USERNAME = 'Upen';
+const STAFF_USERNAME = 'staff';
+const LOGIN_SALT = 'royal-enterprise-v4:';
+const ADMIN_PASSWORD_SHA256 = 'aed577032bdf93da67735bd4c023155bbe5c2d455273666635af84f78090fdfa';
+const STAFF_PASSWORD_SHA256 = 'fefc82cc1a79d0b815bbaaecfcb168eff4562ab6ca8092dd10dfc673d442d82';
+const IDLE_LIMIT_MS = 30 * 60 * 1000;
+let currentRole = '';
+let currentUsername = '';
+let idleTimer = null;
+
+async function sha256Hex(value){
+ const bytes = new TextEncoder().encode(value);
+ const digest = await crypto.subtle.digest('SHA-256', bytes);
+ return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function showLogin(message=''){
+ $('loginError').textContent = message;
+ $('loginPassword').value = '';
+ $('loginOverlay').style.display = 'flex';
+ setTimeout(()=>$('loginUsername').focus(),50);
+}
+function hideLogin(){ $('loginOverlay').style.display = 'none'; $('loginError').textContent=''; }
+function resetIdleTimer(){
+ if(idleTimer)clearTimeout(idleTimer);
+ if(currentRole)idleTimer=setTimeout(()=>logoutUser('You were signed out after 30 minutes of inactivity.'),IDLE_LIMIT_MS);
+}
+function applyRole(role, username){
+ currentRole=role;currentUsername=username;
+ $('loggedInLabel').textContent=username+' · '+(role==='admin'?'Administrator':'Staff');
+ $('settingsNavBtn').classList.toggle('hidden',role!=='admin');
+ hideLogin();resetIdleTimer();
+}
+function logoutUser(message='You have been logged out.'){
+ if(idleTimer)clearTimeout(idleTimer);idleTimer=null;currentRole='';currentUsername='';
+ $('loggedInLabel').textContent='Not signed in';$('settingsNavBtn').classList.add('hidden');
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id==='editorTab'));
+ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.tab==='editorTab'));
+ showLogin(message);
+}
+$('loginForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ const username=$('loginUsername').value.trim();
+ const password=$('loginPassword').value;
+ const error=$('loginError');
+ error.textContent='Checking credentials…';
+ try{
+  const digest=await sha256Hex(LOGIN_SALT+password);
+  if(username.toLowerCase()===ADMIN_USERNAME.toLowerCase() && digest===ADMIN_PASSWORD_SHA256){applyRole('admin',ADMIN_USERNAME);return;}
+  if(username.toLowerCase()===STAFF_USERNAME.toLowerCase() && digest===STAFF_PASSWORD_SHA256){applyRole('staff',STAFF_USERNAME);return;}
+  showLogin('Invalid username or password.');
+ }catch(err){showLogin('Login could not be verified in this browser. Please use an updated browser over HTTPS.');}
+});
+$('logoutBtn').addEventListener('click',()=>logoutUser());
+['click','keydown','mousemove','touchstart','scroll'].forEach(type=>document.addEventListener(type,()=>{if(currentRole)resetIdleTimer();},{passive:true}));
+function requireAdmin(){
+ if(currentRole==='admin')return true;
+ alert('Only the administrator can access Company Settings. Please sign in with the administrator account.');
+ if(!currentRole)showLogin('Administrator sign-in is required for Company Settings.');
+ return false;
+}
+
+const STORE='royalEnterpriseInvoiceAppV1';
+const defaultData={
+ settings:{name:'Royal Enterprise',phone:'98250 37034 / 97129 37034',address:'00081/1/A/1/1, Ameri Compound, Nr. Ruby Photo Studio, Ram Rahim Tekra, B/H. Calico Mill, Behrampura, Ahmedabad - 380022',gst:'24ABJPR4452K1ZC',pan:'ABJPR4452K',bank:'Kotak Mahindra Bank',branch:'Narayan Nagar Road, Paldi',account:'7612625683',ifsc:'KKBK0002589',rate:18,state:'Gujarat (Code: 24)',sign:'Authorised Signatory'},
+ customers:[],products:[],invoices:[],nextNumber:678,driveClientId:''
+};
+let db=loadDB(), items=[];
+function loadDB(){try{return {...structuredClone(defaultData),...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch(e){return structuredClone(defaultData)}}
+function persist(){localStorage.setItem(STORE,JSON.stringify(db))}
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function words(n){
+ n=Math.round(Number(n)||0);if(n===0)return 'Zero Rupees Only';
+ const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+ function under(x){return x<20?a[x]:b[Math.floor(x/10)]+(x%10?' '+a[x%10]:'')}
+ function chunk(x){let s='';if(x>=100){s+=a[Math.floor(x/100)]+' Hundred';x%=100;if(x)s+=' ';}return s+under(x)}
+ let parts=[];const units=[[10000000,'Crore'],[100000,'Lakh'],[1000,'Thousand'],[1,'']];
+ for(const [v,name] of units){if(n>=v){let q=Math.floor(n/v);parts.push(chunk(q)+(name?' '+name:''));n%=v}}
+ return parts.join(' ')+' Rupees Only';
+}
+function getTotals(){
+ const subtotal=items.reduce((sum,x)=>sum+itemQuantity(x)*(Number(x.rate)||0),0);
+ const freight=Math.max(0,Number($('freight').value)||0),taxable=subtotal+freight,rate=Math.max(0,Number($('gstRate').value)||0);
+ const mode=$('taxMode').value,gst=mode==='none'?0:taxable*rate/100;
+ const cgst=mode==='intra'?gst/2:0,sgst=mode==='intra'?gst/2:0,igst=mode==='inter'?gst:0;
+ const beforeRound=taxable+gst;
+ const rounded=Math.floor(beforeRound+0.5+1e-9);
+ const round=Number((rounded-beforeRound).toFixed(2));
+ return {subtotal,freight,taxable,rate,mode,gst,cgst,sgst,igst,round,total:rounded};
+}
+function updateTotals(){const t=getTotals();$('taxableDisplay').textContent=money(t.taxable);$('gstDisplay').textContent=money(t.gst);$('grandDisplay').textContent=money(t.total);$('wordsDisplay').textContent=words(t.total);$('roundOff').value=t.round.toFixed(2)}
+const BOARD_TYPES=['Uncoated Paper Board','Kappa Board','Kraft Board','Mill Board','Stiff Board','FBB Board','Duplex Board','FBB Waste','Duplex Waste','Board Waste'];
+const HSN_CODES=['480210','48070010','480593','48102900','4707','48109200'];
+function itemBasis(x){return x.basis || 'kgs';}
+function itemQuantity(x){return Number(itemBasis(x)==='bundles'?(x.bundles??x.qty):(x.qty??''))||0;}
+function addItem(x={}){
+ const desc=BOARD_TYPES.includes(x.desc)?x.desc:'';
+ const basis=itemBasis(x);
+ const qty=basis==='bundles'?(x.bundles??x.qty??''):(x.qty??1);
+ items.push({desc,size:x.size||'',hsn:HSN_CODES.includes(String(x.hsn))?String(x.hsn):'',basis,qty,bundles:basis==='bundles'?qty:'',rate:x.rate??0,unit:x.unit||''});
+ renderItems();
+}
+function renderItems(){
+ $('itemsInput').querySelector('tbody').innerHTML=items.map((x,i)=>{
+  const basis=itemBasis(x),qty=itemQuantity(x);
+  return `<tr>
+   <td><select class="item-desc-select" data-i="${i}" data-k="desc"><option value="">-- Select description --</option>${BOARD_TYPES.map(v=>`<option value="${esc(v)}" ${x.desc===v?'selected':''}>${esc(v)}</option>`).join('')}</select>
+   <input class="item-size-input" data-i="${i}" data-k="size" value="${esc(x.size||'')}" placeholder="Size / GSM (e.g. 28 x 34, 440 GSM)"></td>
+   <td><select class="item-hsn-select" data-i="${i}" data-k="hsn"><option value="">-- HSN --</option>${HSN_CODES.map(v=>`<option value="${v}" ${String(x.hsn)===v?'selected':''}>${v}</option>`).join('')}</select></td>
+   <td><select class="item-basis-select" data-i="${i}" data-k="basis"><option value="bundles" ${basis==='bundles'?'selected':''}>Bundles</option><option value="kgs" ${basis==='kgs'?'selected':''}>KGS</option></select></td>
+   <td><input data-i="${i}" data-k="qty" type="number" min="0" step=".001" value="${qty||''}" placeholder="Quantity"></td>
+   <td><input data-i="${i}" data-k="rate" type="number" min="0" step=".01" value="${x.rate??0}"></td>
+   <td class="right">${money(qty*(Number(x.rate)||0))}</td><td><button class="danger" data-remove="${i}" type="button">×</button></td></tr>`;
+ }).join('');
+}
+function nextInvoice(){ $('invoiceNo').value='RE/'+new Date().getFullYear()+'/'+String(db.nextNumber).padStart(4,'0');$('challanNo').value='';$('invoiceDate').value=new Date().toISOString().slice(0,10);$('placeSupply').value=db.settings.state||'Gujarat';$('buyerName').value='';$('buyerGst').value='';$('buyerAddress').value='';$('buyerState').value='';$('freight').value=0;$('roundOff').value=0;$('taxMode').value='intra';$('gstRate').value=db.settings.rate||18;items=[];addItem();updateTotals()}
+function customerList(){ $('customerNames').innerHTML=db.customers.map(c=>`<option value="${esc(c.name)}">`).join('');$('customerTable').querySelector('tbody').innerHTML=db.customers.map((c,i)=>`<tr><td>${esc(c.name)}</td><td>${esc(c.gst||'')}</td><td>${esc(c.address||'')}</td><td>${esc(c.state||'')}</td><td><button class="secondary" data-cedit="${i}">Edit</button> <button class="danger" data-cdel="${i}">Delete</button></td></tr>`).join('')}
+function productList(){ $('productTable').querySelector('tbody').innerHTML=db.products.map((p,i)=>`<tr><td>${esc(p.name)}</td><td>${esc(p.hsn)}</td><td>${esc(p.unit)}</td><td>${money(p.rate)}</td><td><button class="secondary" data-padd="${i}">Add to invoice</button> <button class="danger" data-pdel="${i}">Delete</button></td></tr>`).join('')}
+function readSettings(){const s={};[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>s[k]=$(id).value);return s}
+function fillSettings(){const s=db.settings;[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>$(id).value=s[k]??'')}
+function invoiceData(){const t=getTotals();return {no:$('invoiceNo').value,challan:$('challanNo').value,date:$('invoiceDate').value,place:$('placeSupply').value,buyer:{name:$('buyerName').value,gst:$('buyerGst').value,address:$('buyerAddress').value,state:$('buyerState').value},items:structuredClone(items),totals:t,words:words(t.total),savedAt:new Date().toISOString()}}
+function renderPreview(inv=invoiceData()){
+ const s=db.settings,t=inv.totals;
+ const lineRows=inv.items.map(x=>{
+  const basis=itemBasis(x),qty=itemQuantity(x),amount=qty*(Number(x.rate)||0);
+  return `<tr><td class="desc"><b>${esc(x.desc||'')}</b>${x.size?`<br>${esc(x.size)}`:''}</td><td>${esc(x.hsn||'')}</td><td class="right">${basis==='bundles'?qty:''}</td><td class="right">${basis==='kgs'?qty:''}</td><td class="right">${money(x.rate)}</td><td class="right">${money(amount)}</td></tr>`;
+ }).join('');
+ $('invoicePaper').innerHTML=`
+ <div class="inv-top">
+  <div class="inv-headline"><span>TAX INVOICE</span><span>Subject to Ahmedabad Jurisdiction</span><span></span></div>
+  <div class="inv-brandband"><div class="inv-logo"><img src="royal-enterprise-logo.webp" alt="Royal Enterprise logo"></div><div class="brand">${esc(s.name)}</div><div class="inv-phone">M : ${esc(s.phone).replace(' / ','<br>')}</div></div>
+  <div class="inv-dealers">Authorised Dealers of :<br>Craft Board, Kappa Board, Duplex Board, Stiff Board, White Mill Board, Grey Board &amp; All Type of Boards</div>
+  <div class="inv-address">${esc(s.address)}</div>
+ </div>
+ <div class="inv-meta">
+  <div class="inv-box inv-buyer"><div class="inv-buyer-top"><b>M/s.</b><br><strong>${esc(inv.buyer.name)}</strong><br>${esc(inv.buyer.address).replace(/\n/g,'<br>')}<br>${esc(inv.buyer.state)}</div><div class="inv-buyer-gst">Buyer's GST No. : ${esc(inv.buyer.gst)}</div></div>
+  <div class="inv-box inv-bill"><div class="inv-billrow"><span>Bill No. :</span><span>${esc(inv.no)}</span></div><div class="inv-billrow"><span>Challan No. :</span><span>${esc(inv.challan)}</span></div><div class="inv-billrow"><span>Date :</span><span>${esc(inv.date)}</span></div></div>
+ </div>
+ <table class="inv-table"><thead><tr><th>DESCRIPTION</th><th>HSN<br>CODE</th><th>BUNDLES</th><th>KGS.</th><th>RATE</th><th>AMOUNT</th></tr></thead><tbody>${lineRows}<tr class="line-items-empty"><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+ <div class="inv-footer-grid">
+  <div class="inv-left-footer">
+   <div class="inv-bank"><b>Company's Bank Details</b><br>Bank Name : <b>${esc(s.bank)}</b><br>Branch : <b>${esc(s.branch)}</b><br>A/c. No. : <b>${esc(s.account)}</b><br>IFSC Code : <b>${esc(s.ifsc)}</b></div>
+   <div class="inv-vehicle">Vehicle No. :</div>
+   <div class="inv-gstpan">GST No. : ${esc(s.gst)}<br>State : ${esc(s.state)}<br>PAN No. : ${esc(s.pan)}</div>
+   <div class="inv-words"><span class="inv-words-title">Rupees</span>${esc(inv.words)}</div>
+  </div>
+  <div class="inv-right-footer"><table class="inv-totals">
+   <tr><td>TOTAL</td><td class="right">${money(t.subtotal)}</td></tr>
+   ${t.mode==='intra'?`<tr><td>CGST ${t.rate/2}%</td><td class="right">${money(t.cgst)}</td></tr><tr><td>SGST ${t.rate/2}%</td><td class="right">${money(t.sgst)}</td></tr>`:t.mode==='inter'?`<tr><td>IGST ${t.rate}%</td><td class="right">${money(t.igst)}</td></tr>`:`<tr><td>GST</td><td class="right">${money(0)}</td></tr>`}
+   ${t.freight?`<tr><td>Freight</td><td class="right">${money(t.freight)}</td></tr>`:''}
+   <tr><td>Round Off</td><td class="right">${money(t.round)}</td></tr><tr class="grand"><td>Grand TOTAL</td><td class="right">${money(t.total)}</td></tr>
+  </table></div>
+ </div>
+ <div class="inv-terms-sign"><div class="inv-terms"><b>TERMS :</b><br>Interest @ 24% will be charged in bills not paid within 30 days of presentation.<br>Kindly note that any complaint regarding goods you received must be made within 24 hours after delivery.<br><b>E. &amp; O. E.</b></div><div class="inv-sign"><div class="sign-title">For, ${esc(s.name)}</div><div class="signature-line"></div><div class="sign-label">${esc(s.sign||'Authorised Signatory')}</div></div></div>`;
+}
+function showTab(id){
+ if(id==='settingsTab' && currentRole!=='admin'){requireAdmin();return;}
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===id));
+ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));
+ if(id==='previewTab')renderPreview();if(id==='historyTab')renderHistory()
+}
+window.showInvoiceTab=showTab;
+
+// ---------------- Google Drive integration ----------------
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+let googleTokenClient=null, googleAccessToken='', googleTokenExpiresAt=0;
+let driveBusy=false;
+
+function setDriveStatus(message,kind='info'){
+ const el=$('driveStatus');
+ if(!el)return;
+ el.textContent=message;
+ el.style.borderColor=kind==='ok'?'#78b88a':kind==='error'?'#d18b8b':'#d7e5ee';
+}
+function driveConfigured(){return Boolean((db.driveClientId||'').trim())}
+function initDriveClient(){
+ googleTokenClient=null;
+ if(!driveConfigured()){setDriveStatus('Enter and save your OAuth Client ID.');return}
+ if(!window.google?.accounts?.oauth2){
+  setDriveStatus('Google authorization library is still loading. Refresh or try again shortly.');
+  return;
+ }
+ googleTokenClient=google.accounts.oauth2.initTokenClient({
+  client_id:db.driveClientId.trim(),
+  scope:DRIVE_SCOPE,
+  callback:async(response)=>{
+   if(response.error){
+    googleAccessToken='';googleTokenExpiresAt=0;
+    setDriveStatus('Authorization failed: '+response.error,'error');
+    return;
+   }
+   googleAccessToken=response.access_token||'';
+   googleTokenExpiresAt=Date.now()+(Number(response.expires_in||3600)-60)*1000;
+   setDriveStatus('Connected to Google Drive.','ok');
+  },
+  error_callback:(error)=>{
+   setDriveStatus('Google sign-in popup error: '+(error.message||error.type||'unknown error'),'error');
+  }
+ });
+ setDriveStatus('Ready to connect Google Drive.');
+}
+function connectDrive(){
+ if(!driveConfigured()){
+  alert('Enter your Google OAuth Client ID and click Save Drive configuration first.');
+  return;
+ }
+ if(!window.google?.accounts?.oauth2){
+  alert('Google authorization library has not loaded. Refresh this page and try again.');
+  return;
+ }
+ if(!googleTokenClient)initDriveClient();
+ googleTokenClient.requestAccessToken({prompt:'consent'});
+}
+function disconnectDrive(){
+ googleAccessToken='';googleTokenExpiresAt=0;
+ setDriveStatus(driveConfigured()?'Disconnected. Click Connect Google Drive to reconnect.':'Not configured.');
+}
+function hasDriveToken(){return Boolean(googleAccessToken&&Date.now()<googleTokenExpiresAt)}
+async function driveRequest(url,options={}){
+ if(!hasDriveToken())throw new Error('Google Drive is not connected or the access token expired. Reconnect Google Drive in Company Settings.');
+ const response=await fetch(url,{
+  ...options,
+  headers:{Authorization:'Bearer '+googleAccessToken,...(options.headers||{})}
+ });
+ const body=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(body.error?.message||('Google Drive API error '+response.status));
+ return body;
+}
+function driveQueryEscape(value){return String(value).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+async function findDriveFile(name,parentId){
+ const clauses=["name = '"+driveQueryEscape(name)+"'","trashed = false"];
+ if(parentId)clauses.push("'"+parentId+"' in parents");
+ const q=encodeURIComponent(clauses.join(' and '));
+ const result=await driveRequest('https://www.googleapis.com/drive/v3/files?q='+q+'&pageSize=100&fields=files(id,name,mimeType,webViewLink)');
+ return result.files?.[0]||null;
+}
+async function getOrCreateDriveFolder(name,parentId=null){
+ const found=await findDriveFile(name,parentId);
+ if(found)return found.id;
+ const metadata={name,mimeType:'application/vnd.google-apps.folder'};
+ if(parentId)metadata.parents=[parentId];
+ const created=await driveRequest('https://www.googleapis.com/drive/v3/files?fields=id,name',{
+  method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metadata)
+ });
+ return created.id;
+}
+async function putDriveFile(name,mimeType,blob,parentId){
+ let file=await findDriveFile(name,parentId);
+ if(!file){
+  const metadata={name,mimeType,parents:[parentId]};
+  file=await driveRequest('https://www.googleapis.com/drive/v3/files?fields=id,name',{
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metadata)
+  });
+ }
+ await driveRequest('https://www.googleapis.com/upload/drive/v3/files/'+file.id+'?uploadType=media',{
+  method:'PATCH',headers:{'Content-Type':mimeType},body:blob
+ });
+ return {id:file.id,name,link:'https://drive.google.com/file/d/'+file.id+'/view'};
+}
+function safeFilePart(value){
+ return String(value||'').trim().replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').replace(/_+/g,'_').slice(0,80)||'Customer';
+}
+function invoiceFileBase(inv){
+ const customer=safeFilePart(inv.buyer?.name);
+ const number=safeFilePart(inv.no).replace(/_+/g,'_');
+ return 'Invoice_'+number+'_'+customer;
+}
+function invoiceDateParts(inv){
+ const d=inv.date?new Date(inv.date+'T12:00:00'):new Date();
+ if(Number.isNaN(d.getTime()))return {year:String(new Date().getFullYear()),month:new Date().toLocaleString('en-IN',{month:'long'})};
+ return {year:String(d.getFullYear()),month:d.toLocaleString('en-IN',{month:'long'})};
+}
+async function createInvoicePdfBlob(inv){
+ if(!window.html2pdf)throw new Error('PDF generator library did not load. Check your internet connection and refresh.');
+ renderPreview(inv);
+ const element=$('invoicePaper');
+ const filename=invoiceFileBase(inv)+'.pdf';
+ const options={
+  margin:[4,4,4,4],
+  filename,
+  image:{type:'jpeg',quality:0.98},
+  html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',scrollY:0},
+  jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+  pagebreak:{mode:['css','legacy']}
+ };
+ return await window.html2pdf().set(options).from(element).outputPdf('blob');
+}
+async function uploadInvoiceToDrive(inv,source='manual'){
+ if(driveBusy)return;
+ if(!driveConfigured()){alert('Set up Google Drive first in Company Settings.');return}
+ if(!hasDriveToken()){alert('Connect or reconnect Google Drive in Company Settings, then retry the upload.');return}
+ driveBusy=true;
+ setDriveStatus('Preparing invoice PDF and JSON backup…');
+ try{
+  const {year,month}=invoiceDateParts(inv);
+  const root=await getOrCreateDriveFolder('Royal Enterprise Invoices');
+  const yearFolder=await getOrCreateDriveFolder(year,root);
+  const monthFolder=await getOrCreateDriveFolder(month,yearFolder);
+  const base=invoiceFileBase(inv);
+  const pdfBlob=await createInvoicePdfBlob(inv);
+  const jsonPayload={
+   app:'Royal Enterprise GST Invoice Generator',
+   schemaVersion:1,
+   exportedAt:new Date().toISOString(),
+   company:structuredClone(db.settings),
+   invoice:structuredClone(inv)
+  };
+  const jsonBlob=new Blob([JSON.stringify(jsonPayload,null,2)],{type:'application/json'});
+  const pdfFile=await putDriveFile(base+'.pdf','application/pdf',pdfBlob,monthFolder);
+  const jsonFile=await putDriveFile(base+'.json','application/json',jsonBlob,monthFolder);
+  setDriveStatus('Uploaded both files: '+pdfFile.name+' and '+jsonFile.name,'ok');
+  if(source==='manual'){
+   alert('Invoice PDF and JSON backup saved to Google Drive:\\n'+year+'/'+month+'\\n\\nPDF: '+pdfFile.link+'\\nJSON: '+jsonFile.link);
+  }else{
+   console.info('Invoice uploaded to Google Drive',pdfFile.link,jsonFile.link);
+  }
+ }catch(error){
+  setDriveStatus('Upload failed: '+error.message,'error');
+  alert('Invoice was saved in browser history, but Google Drive upload failed:\\n'+error.message);
+ }finally{driveBusy=false}
+}
+
+
+async function saveInvoice(){
+ const inv=invoiceData();
+ if(!inv.buyer.name.trim()){alert('Please enter the customer name.');return}
+ const existing=db.invoices.findIndex(x=>x.no===inv.no);
+ if(existing>=0)db.invoices[existing]=inv;
+ else{db.invoices.push(inv);db.nextNumber++}
+ persist();renderHistory();
+ if(hasDriveToken()){
+  await uploadInvoiceToDrive(inv,'automatic');
+  alert('Invoice saved in browser history and Google Drive upload was attempted. Check Drive status in Company Settings.');
+ }else{
+  alert('Invoice saved in this browser. To upload it, connect Google Drive in Company Settings, then use Save PDF + JSON to Drive from Invoice Preview.');
+ }
+}
+
+function renderHistory(){$('historyTable').querySelector('tbody').innerHTML=db.invoices.slice().reverse().map((x,ri)=>{const i=db.invoices.length-1-ri;return `<tr><td>${esc(x.no)}</td><td>${esc(x.date)}</td><td>${esc(x.buyer.name)}</td><td>${money(x.totals.total)}</td><td><button class="secondary" data-hview="${i}">View</button> <button class="secondary" data-hupload="${i}">Upload</button> <button class="secondary" data-hedit="${i}">Edit</button> <button class="danger" data-hdel="${i}">Delete</button></td></tr>`}).join('')}
+function loadInvoice(i){const x=db.invoices[i];$('invoiceNo').value=x.no;$('challanNo').value=x.challan;$('invoiceDate').value=x.date;$('placeSupply').value=x.place;$('buyerName').value=x.buyer.name;$('buyerGst').value=x.buyer.gst;$('buyerAddress').value=x.buyer.address;$('buyerState').value=x.buyer.state;$('freight').value=x.totals.freight;$('taxMode').value=x.totals.mode;$('gstRate').value=x.totals.rate;$('roundOff').value=x.totals.round;items=structuredClone(x.items);renderItems();updateTotals()}
+function saveCustomer(name,gst,address,state){if(!name.trim())return alert('Enter customer name');let i=db.customers.findIndex(c=>c.name.toLowerCase()===name.trim().toLowerCase());let c={name:name.trim(),gst,address,state};if(i>=0)db.customers[i]=c;else db.customers.push(c);persist();customerList();alert('Customer saved.')}
+function clearCustomerForm(){['cName','cGst','cAddress','cState'].forEach(id=>$(id).value='')}
+function clearProductForm(){['pName','pHsn','pUnit','pRate'].forEach(id=>$(id).value='')}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+$('newInvoiceBtn').onclick=nextInvoice;$('previewBtn').onclick=$('previewBtn2').onclick=()=>showTab('previewTab');$('backEditBtn').onclick=()=>showTab('editorTab');$('printBtn').onclick=()=>window.print();
+$('uploadDrivePreviewBtn').onclick=()=>uploadInvoiceToDrive(invoiceData(),'manual');
+$('addItemBtn').onclick=()=>addItem();function onItemFieldChange(e){
+ const el=e.target;if(el.dataset.i===undefined)return;
+ const idx=Number(el.dataset.i),key=el.dataset.k;if(!items[idx])return;
+ if(key==='basis'){
+  const oldQty=itemQuantity(items[idx]);items[idx].basis=el.value;items[idx].qty=oldQty;items[idx].bundles=el.value==='bundles'?oldQty:'';renderItems();
+ }else{
+  items[idx][key]=el.value;
+  if(key==='qty')items[idx].bundles=items[idx].basis==='bundles'?el.value:'';
+  const row=el.closest('tr'),x=items[idx];
+  row.children[5].textContent=money(itemQuantity(x)*(Number(x.rate)||0));
+ }
+ updateTotals();
+}
+$('itemsInput').addEventListener('input',onItemFieldChange);
+$('itemsInput').addEventListener('change',onItemFieldChange);
+$('itemsInput').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){items.splice(+e.target.dataset.remove,1);renderItems();updateTotals()}});
+['freight','gstRate','taxMode'].forEach(id=>$(id).addEventListener('input',updateTotals));
+$('saveInvoiceBtn').onclick=saveInvoice;
+$('saveCustomerFromInvoice').onclick=()=>saveCustomer($('buyerName').value,$('buyerGst').value,$('buyerAddress').value,$('buyerState').value);
+$('saveCustomerBtn').onclick=()=>{saveCustomer($('cName').value,$('cGst').value,$('cAddress').value,$('cState').value);clearCustomerForm()};
+$('clearCustomerBtn').onclick=clearCustomerForm;
+$('customerTable').addEventListener('click',e=>{let i=e.target.dataset.cdel;if(i!==undefined){if(confirm('Delete this customer?')){db.customers.splice(+i,1);persist();customerList()}}i=e.target.dataset.cedit;if(i!==undefined){let c=db.customers[+i];$('cName').value=c.name;$('cGst').value=c.gst;$('cAddress').value=c.address;$('cState').value=c.state;showTab('customersTab')}});
+$('saveProductBtn').onclick=()=>{let p={name:$('pName').value.trim(),hsn:$('pHsn').value,unit:$('pUnit').value,rate:Number($('pRate').value)||0};if(!p.name)return alert('Enter product description');db.products.push(p);persist();productList();clearProductForm()};
+$('clearProductBtn').onclick=clearProductForm;
+$('productTable').addEventListener('click',e=>{let i=e.target.dataset.pdel;if(i!==undefined){db.products.splice(+i,1);persist();productList()}i=e.target.dataset.padd;if(i!==undefined){let p=db.products[+i];addItem({desc:p.name,hsn:p.hsn,unit:p.unit,rate:p.rate,qty:1,basis:String(p.unit||'').toLowerCase().includes('bundle')?'bundles':'kgs'});showTab('editorTab')}});
+$('saveSettingsBtn').onclick=()=>{if(!requireAdmin())return;db.settings=readSettings();persist();alert('Company settings saved.')};
+$('saveDriveConfigBtn').onclick=()=>{if(!requireAdmin())return;db.driveClientId=$('driveClientId').value.trim();persist();initDriveClient();alert('Google Drive configuration saved.');};
+$('connectDriveBtn').onclick=connectDrive;
+$('disconnectDriveBtn').onclick=disconnectDrive;
+$('historyTable').addEventListener('click',e=>{let i=e.target.dataset.hview;if(i!==undefined){loadInvoice(+i);showTab('previewTab')}i=e.target.dataset.hupload;if(i!==undefined){uploadInvoiceToDrive(db.invoices[+i],'manual')}i=e.target.dataset.hedit;if(i!==undefined){loadInvoice(+i);showTab('editorTab')}i=e.target.dataset.hdel;if(i!==undefined&&confirm('Delete this invoice from history?')){db.invoices.splice(+i,1);persist();renderHistory()}});
+$('exportDataBtn').onclick=()=>{const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='royal-enterprise-invoice-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('importData').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());if(!data.settings||!Array.isArray(data.invoices)||!Array.isArray(data.customers)||!Array.isArray(data.products))throw Error();db=data;persist();fillSettings();customerList();productList();renderHistory();alert('Backup imported.')}catch(err){alert('Invalid backup file.')}e.target.value=''};
+$('buyerName').addEventListener('change',()=>{const c=db.customers.find(x=>x.name.toLowerCase()===$('buyerName').value.toLowerCase());if(c){$('buyerGst').value=c.gst;$('buyerAddress').value=c.address;$('buyerState').value=c.state}});
+function initProductDropdowns(){
+ $('pName').innerHTML='<option value="">-- Select description --</option>'+BOARD_TYPES.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+ $('pHsn').innerHTML='<option value="">-- Select HSN --</option>'+HSN_CODES.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+initProductDropdowns();fillSettings();customerList();productList();nextInvoice();
+$('driveClientId').value=db.driveClientId||'';
+setTimeout(initDriveClient,800);
+</script>
+</body></html>
