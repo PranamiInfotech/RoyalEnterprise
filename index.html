@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal Enterprise | GST Invoice Generator</title>
-<meta name="royal-enterprise-build" content="v4.3-parent-product-size-lines-2026-11-21">
+<meta name="royal-enterprise-build" content="whatsapp-cross-device-pdf-share-v4.4">
 <style>
 :root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
@@ -224,7 +224,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 <h2>Buyer details</h2>
 <div class="grid two">
 <div class="field"><label>Customer name</label><input id="buyerName" list="customerNames" placeholder="Customer / business name"><datalist id="customerNames"></datalist></div>
-<div class="field"><label>Customer WhatsApp number</label><input id="buyerPhone" type="tel" inputmode="tel" placeholder="+91 98765 43210"></div>
+<div class="field"><label>Customer WhatsApp number</label><input id="buyerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210"></div>
 <div class="field"><label>GSTIN</label><input id="buyerGst" placeholder="GST number"></div>
 <div class="field"><label>Address</label><textarea id="buyerAddress" placeholder="Billing address"></textarea></div>
 <div class="field"><label>State / State code</label><input id="buyerState" placeholder="Gujarat (Code: 24)"></div>
@@ -255,13 +255,13 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 </section>
 
 <section id="previewTab" class="tab">
-<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button class="secondary" id="uploadDrivePreviewBtn">Save PDF + JSON to Drive</button><button class="secondary" id="whatsappBtn">WhatsApp invoice</button><button id="printBtn">Print / Save PDF</button></div></div>
+<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button class="secondary" id="uploadDrivePreviewBtn">Save PDF + JSON to Drive</button><button class="secondary" id="whatsappBtn" title="Generate the invoice PDF and share it with the customer on WhatsApp">Share PDF on WhatsApp</button><button id="printBtn">Print / Save PDF</button></div></div>
 <div id="invoicePaper" class="invoice-paper"></div>
 </section>
 
 <section id="customersTab" class="tab">
 <div class="panel"><h2>Customer management</h2><div class="grid two">
-<div><label>Customer name</label><input id="cName"></div><div><label>WhatsApp number</label><input id="cPhone" type="tel" placeholder="+91 98765 43210"></div><div><label>GSTIN</label><input id="cGst"></div>
+<div><label>Customer name</label><input id="cName"></div><div><label>WhatsApp number</label><input id="cPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210"><small class="muted">Save the number with country code, e.g. +91 98765 43210.</small></div><div><label>GSTIN</label><input id="cGst"></div>
 <div><label>Address</label><textarea id="cAddress"></textarea></div><div><label>State / code</label><input id="cState"></div></div>
 <div class="actions"><button id="saveCustomerBtn">Save customer</button><button class="secondary" id="clearCustomerBtn">Clear</button></div></div>
 <div class="panel"><div class="table-wrap"><table id="customerTable"><thead><tr><th>Name</th><th>WhatsApp</th><th>GSTIN</th><th>Address</th><th>State</th><th></th></tr></thead><tbody></tbody></table></div></div>
@@ -693,34 +693,74 @@ async function createInvoicePdfBlob(inv){
  return await window.html2pdf().set(options).from(element).outputPdf('blob');
 }
 let activePreviewInvoice=null;
+function normalizeWhatsAppPhone(value){
+ const digits=String(value||'').replace(/\D/g,'');
+ if(!digits)return '';
+ // Indian 10-digit mobile numbers are normalized to country code 91.
+ if(digits.length===10)return '91'+digits;
+ // Accept international numbers with country code, 11–15 digits.
+ if(digits.length>=11&&digits.length<=15)return digits;
+ return null;
+}
 async function shareInvoiceWhatsApp(){
  const inv=activePreviewInvoice||invoiceData();
  if(!inv.buyer.name){alert('Please enter the customer name first.');return}
- const message=`Hello ${inv.buyer.name}, please find your Royal Enterprise invoice ${inv.no} dated ${formatDateDisplay(inv.date)} for ${money(inv.totals.total)}. Thank you.`;
- const rawPhone=String(inv.buyer.phone||'').replace(/\D/g,'');
- const phone=rawPhone.length===10?'91'+rawPhone:rawPhone;
+ const phone=normalizeWhatsAppPhone(inv.buyer.phone);
+ if(phone===null){
+  alert('Please enter a valid WhatsApp number with country code, e.g. +91 98765 43210.');
+  return;
+ }
+ if(!phone){
+  alert('Please add the customer WhatsApp number in Customer Management or invoice Buyer Details.');
+  return;
+ }
+ const message=`Hello ${inv.buyer.name}, please find attached your Royal Enterprise invoice ${inv.no} dated ${formatDateDisplay(inv.date)} for ${money(inv.totals.total)}. Thank you.`;
  const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+ // Open a tab synchronously from the click to avoid popup blocking on desktop.
  const waWindow=window.open('about:blank','_blank');
+ const button=$('whatsappBtn');
+ const originalLabel=button?button.textContent:'Share PDF on WhatsApp';
+ if(button){button.disabled=true;button.textContent='Preparing PDF…'}
  try{
   const pdfBlob=await createInvoicePdfBlob(inv);
   const pdfName=invoiceFileBase(inv)+'.pdf';
   const pdfFile=new File([pdfBlob],pdfName,{type:'application/pdf'});
+
+  // On supported phones/tablets (and compatible desktop browsers), share the
+  // actual PDF file through the operating-system share sheet. The user selects WhatsApp.
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){
-   await navigator.share({files:[pdfFile],title:`Invoice ${inv.no}`,text:message});
+   if(waWindow)waWindow.close();
+   await navigator.share({files:[pdfFile],title:`Royal Enterprise Invoice ${inv.no}`,text:message});
+   return;
+  }
+
+  // Fallback for browsers that cannot share files: download PDF and open WhatsApp.
+  const blobUrl=URL.createObjectURL(pdfBlob);
+  const download=document.createElement('a');
+  download.href=blobUrl;
+  download.download=pdfName;
+  download.style.display='none';
+  document.body.appendChild(download);
+  download.click();
+  download.remove();
+  setTimeout(()=>URL.revokeObjectURL(blobUrl),120000);
+
+  if(waWindow)waWindow.location.href=waUrl;
+  else window.open(waUrl,'_blank');
+
+  alert('Your invoice PDF has been downloaded. WhatsApp is opening with the customer chat and message. In WhatsApp, tap the attachment (paperclip / +), choose Document, select the downloaded invoice PDF, and send it.');
+ }catch(error){
+  if(error&&error.name==='AbortError'){
    if(waWindow)waWindow.close();
    return;
   }
-  const blobUrl=URL.createObjectURL(pdfBlob);
-  const download=document.createElement('a');
-  download.href=blobUrl;download.download=pdfName;document.body.appendChild(download);download.click();download.remove();
-  setTimeout(()=>URL.revokeObjectURL(blobUrl),60000);
-  if(waWindow)waWindow.location.href=waUrl;else location.href=waUrl;
-  alert('The invoice PDF has been downloaded. In WhatsApp, open the customer chat and attach the downloaded PDF.');
- }catch(error){
-  if(error&&error.name==='AbortError'){if(waWindow)waWindow.close();return;}
   console.error('WhatsApp invoice share failed:',error);
-  if(waWindow)waWindow.location.href=waUrl;else location.href=waUrl;
-  alert('Could not create the invoice PDF. WhatsApp will open with the invoice message; you can attach a PDF after saving it using Print / Save PDF.');
+  if(waWindow)waWindow.location.href=waUrl;
+  else window.open(waUrl,'_blank');
+  alert('The PDF could not be shared automatically. Use Print / Save PDF first, then attach the saved PDF in the WhatsApp conversation.');
+ }finally{
+  if(button){button.disabled=false;button.textContent=originalLabel}
  }
 }
 async function uploadInvoiceToDrive(inv,source='manual'){
@@ -776,7 +816,15 @@ async function saveInvoice(){
 
 function renderHistory(){$('historyTable').querySelector('tbody').innerHTML=db.invoices.slice().reverse().map((x,ri)=>{const i=db.invoices.length-1-ri;return `<tr><td>${esc(x.no)}</td><td>${esc(formatDateDisplay(x.date))}</td><td>${esc(x.buyer.name)}</td><td>${money(x.totals.total)}</td><td><button class="secondary" data-hview="${i}">View</button> <button class="secondary" data-hupload="${i}">Upload</button> <button class="secondary" data-hedit="${i}">Edit</button> <button class="danger" data-hdel="${i}">Delete</button></td></tr>`}).join('')}
 function loadInvoice(i){const x=db.invoices[i];$('invoiceNo').value=x.no;$('challanNo').value=x.challan;$('invoiceDate').value=dateToISO(x.date);syncInvoiceDateDisplay();$('buyerPhone').value=x.buyer.phone||'';$('placeSupply').value=x.place;$('buyerName').value=x.buyer.name;$('buyerGst').value=x.buyer.gst;$('buyerAddress').value=x.buyer.address;$('buyerState').value=x.buyer.state;$('freight').value=x.totals.freight;$('taxMode').value=x.totals.mode;$('gstRate').value=x.totals.rate;$('roundOff').value=x.totals.round;items=(x.items||[]).map(normalizeItem);renderItems();updateTotals()}
-function saveCustomer(name,phone,gst,address,state){if(!name.trim())return alert('Enter customer name');let i=db.customers.findIndex(c=>c.name.toLowerCase()===name.trim().toLowerCase());let c={name:name.trim(),phone:phone||'',gst,address,state};if(i>=0)db.customers[i]=c;else db.customers.push(c);persist();customerList();alert('Customer saved.')}
+function saveCustomer(name,phone,gst,address,state){
+ if(!name.trim())return alert('Enter customer name');
+ const enteredPhone=String(phone||'').trim();
+ if(enteredPhone&&!normalizeWhatsAppPhone(enteredPhone))return alert('Enter a valid WhatsApp number with country code, e.g. +91 98765 43210.');
+ let i=db.customers.findIndex(c=>c.name.toLowerCase()===name.trim().toLowerCase());
+ let c={name:name.trim(),phone:enteredPhone,gst,address,state};
+ if(i>=0)db.customers[i]=c;else db.customers.push(c);
+ persist();customerList();alert('Customer saved with WhatsApp number.');
+}
 function clearCustomerForm(){['cName','cPhone','cGst','cAddress','cState'].forEach(id=>$(id).value='')}
 function clearProductForm(){['pName','pHsn','pUnit','pRate'].forEach(id=>$(id).value='')}
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
