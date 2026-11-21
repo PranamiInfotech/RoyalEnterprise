@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal Enterprise | GST Invoice Generator</title>
+<meta name="royal-enterprise-build" content="date-format-and-multi-line-fix-2026-11-21">
 <style>
 :root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
@@ -135,7 +136,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 .inv-table td{height:38px;vertical-align:top}
 .inv-table tbody tr:last-child td{border-bottom:2px solid #1596c7!important}
 .inv-table .line-items-empty td{height:300px;border-top:2px solid #1596c7!important}
-.item-desc-select,.item-hsn-select,.item-basis-select{width:100%;min-width:90px}
+.item-desc-select,.item-hsn-select,.item-basis-select{width:100%;min-width:90px}.item-row-actions{white-space:nowrap;min-width:76px}.item-row-actions button{padding:5px 7px;margin:2px}.item-help{margin:0 0 8px;font-size:12px}
 .item-size-input{width:100%;margin-top:4px;min-width:120px}
 #itemsInput input,#itemsInput select{box-sizing:border-box;padding:6px 4px}
 #itemsInput td{vertical-align:top}
@@ -178,7 +179,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 <div class="grid">
 <div class="field"><label>Invoice number</label><input id="invoiceNo" readonly></div>
 <div class="field"><label>Challan number</label><input id="challanNo" placeholder="Optional"></div>
-<div class="field"><label>Invoice date</label><input id="invoiceDate" type="date"></div>
+<div class="field"><label>Invoice date</label><input id="invoiceDate" type="text" inputmode="numeric" placeholder="dd/MM/yyyy" maxlength="10" autocomplete="off" pattern="\\d{2}/\\d{2}/\\d{4}"></div>
 <div class="field"><label>Place of supply / State</label><input id="placeSupply" placeholder="Gujarat"></div>
 </div>
 </div>
@@ -193,8 +194,8 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 <div class="actions"><button class="secondary" id="saveCustomerFromInvoice">Save customer</button></div>
 </div>
 <div class="panel">
-<div class="toolbar"><h2>Items / goods</h2><button id="addItemBtn">+ Add item</button></div>
-<div class="table-wrap"><table id="itemsInput"><thead><tr><th>Description / Size</th><th>HSN</th><th>Basis</th><th>Quantity</th><th>Rate (₹)</th><th>Amount (₹)</th><th></th></tr></thead><tbody></tbody></table></div>
+<div class="toolbar"><h2>Items / goods</h2><button id="addItemBtn">+ Add item / line</button></div>
+<p class="muted item-help">Use <b>+ Add item / line</b> for a new board, or <b>+ Line</b> beside an existing row to add another size / GSM line under the same board description.</p><div class="table-wrap"><table id="itemsInput"><thead><tr><th>Description / Size</th><th>HSN</th><th>Basis</th><th>Quantity</th><th>Rate (₹)</th><th>Amount (₹)</th><th></th></tr></thead><tbody></tbody></table></div>
 <div class="grid" style="margin-top:12px">
 <div class="field"><label>Freight / other charges (₹)</label><input id="freight" type="number" min="0" step=".01" value="0"></div>
 <div class="field"><label>GST treatment</label><select id="taxMode"><option value="intra">CGST + SGST (intra-state)</option><option value="inter">IGST (inter-state)</option><option value="none">No GST</option></select></div>
@@ -281,7 +282,7 @@ const ADMIN_USERNAME = 'Upen';
 const STAFF_USERNAME = 'staff';
 const LOGIN_SALT = 'royal-enterprise-v4:';
 const ADMIN_PASSWORD_SHA256 = 'aed577032bdf93da67735bd4c023155bbe5c2d455273666635af84f78090fdfa';
-const STAFF_PASSWORD_SHA256 = 'fefc82cc1a79d0b815bbaaecfcb168eff4562ab6ca8092dd10dfc673d442d82';
+const STAFF_PASSWORD_SHA256 = 'fefc82cc1a79d0b815bbaaecfcb168eff4562ab6ca8092dd10dfc673d442d82b';
 const IDLE_LIMIT_MS = 30 * 60 * 1000;
 let currentRole = '';
 let currentUsername = '';
@@ -320,14 +321,21 @@ $('loginForm').addEventListener('submit',async event=>{
  event.preventDefault();
  const username=$('loginUsername').value.trim();
  const password=$('loginPassword').value;
+ const normalizedPassword=password.trim();
  const error=$('loginError');
  error.textContent='Checking credentials…';
  try{
   const digest=await sha256Hex(LOGIN_SALT+password);
-  if(username.toLowerCase()===ADMIN_USERNAME.toLowerCase() && digest===ADMIN_PASSWORD_SHA256){applyRole('admin',ADMIN_USERNAME);return;}
-  if(username.toLowerCase()===STAFF_USERNAME.toLowerCase() && digest===STAFF_PASSWORD_SHA256){applyRole('staff',STAFF_USERNAME);return;}
+  const trimmedDigest=normalizedPassword===password ? digest : await sha256Hex(LOGIN_SALT+normalizedPassword);
+  if(username.toLowerCase()===ADMIN_USERNAME.toLowerCase() &&
+     (digest===ADMIN_PASSWORD_SHA256 || trimmedDigest===ADMIN_PASSWORD_SHA256)){applyRole('admin',ADMIN_USERNAME);return;}
+  if(username.toLowerCase()===STAFF_USERNAME.toLowerCase() &&
+     (digest===STAFF_PASSWORD_SHA256 || trimmedDigest===STAFF_PASSWORD_SHA256)){applyRole('staff',STAFF_USERNAME);return;}
   showLogin('Invalid username or password.');
- }catch(err){showLogin('Login could not be verified in this browser. Please use an updated browser over HTTPS.');}
+ }catch(err){
+  console.error('Royal Enterprise login verification failed:',err);
+  showLogin('Login verification failed in this browser. Refresh the page and try again over HTTPS.');
+ }
 });
 $('logoutBtn').addEventListener('click',()=>logoutUser());
 ['click','keydown','mousemove','touchstart','scroll'].forEach(type=>document.addEventListener(type,()=>{if(currentRole)resetIdleTimer();},{passive:true}));
@@ -384,25 +392,61 @@ function renderItems(){
   const basis=itemBasis(x),qty=itemQuantity(x);
   return `<tr>
    <td><select class="item-desc-select" data-i="${i}" data-k="desc"><option value="">-- Select description --</option>${BOARD_TYPES.map(v=>`<option value="${esc(v)}" ${x.desc===v?'selected':''}>${esc(v)}</option>`).join('')}</select>
-   <input class="item-size-input" data-i="${i}" data-k="size" value="${esc(x.size||'')}" placeholder="Size / GSM (e.g. 28 x 34, 440 GSM)"></td>
+   <input class="item-size-input" data-i="${i}" data-k="size" value="${esc(x.size||'')}" placeholder="Size / GSM (e.g. 27 x 32, 440 Oz)"></td>
    <td><select class="item-hsn-select" data-i="${i}" data-k="hsn"><option value="">-- HSN --</option>${HSN_CODES.map(v=>`<option value="${v}" ${String(x.hsn)===v?'selected':''}>${v}</option>`).join('')}</select></td>
    <td><select class="item-basis-select" data-i="${i}" data-k="basis"><option value="bundles" ${basis==='bundles'?'selected':''}>Bundles</option><option value="kgs" ${basis==='kgs'?'selected':''}>KGS</option></select></td>
    <td><input data-i="${i}" data-k="qty" type="number" min="0" step=".001" value="${qty||''}" placeholder="Quantity"></td>
    <td><input data-i="${i}" data-k="rate" type="number" min="0" step=".01" value="${x.rate??0}"></td>
-   <td class="right">${money(qty*(Number(x.rate)||0))}</td><td><button class="danger" data-remove="${i}" type="button">×</button></td></tr>`;
+   <td class="right">${money(qty*(Number(x.rate)||0))}</td>
+   <td class="item-row-actions"><button class="secondary" data-addsimilar="${i}" type="button" title="Add another size line for this board">+ Line</button><button class="danger" data-remove="${i}" type="button" title="Remove line">×</button></td>
+  </tr>`;
  }).join('');
 }
-function nextInvoice(){ $('invoiceNo').value='RE/'+new Date().getFullYear()+'/'+String(db.nextNumber).padStart(4,'0');$('challanNo').value='';$('invoiceDate').value=new Date().toISOString().slice(0,10);$('placeSupply').value=db.settings.state||'Gujarat';$('buyerName').value='';$('buyerGst').value='';$('buyerAddress').value='';$('buyerState').value='';$('freight').value=0;$('roundOff').value=0;$('taxMode').value='intra';$('gstRate').value=db.settings.rate||18;items=[];addItem();updateTotals()}
+function nextInvoice(){ $('invoiceNo').value='RE/'+new Date().getFullYear()+'/'+String(db.nextNumber).padStart(4,'0');$('challanNo').value='';$('invoiceDate').value=todayDisplay();$('placeSupply').value=db.settings.state||'Gujarat';$('buyerName').value='';$('buyerGst').value='';$('buyerAddress').value='';$('buyerState').value='';$('freight').value=0;$('roundOff').value=0;$('taxMode').value='intra';$('gstRate').value=db.settings.rate||18;items=[];addItem();updateTotals()}
 function customerList(){ $('customerNames').innerHTML=db.customers.map(c=>`<option value="${esc(c.name)}">`).join('');$('customerTable').querySelector('tbody').innerHTML=db.customers.map((c,i)=>`<tr><td>${esc(c.name)}</td><td>${esc(c.gst||'')}</td><td>${esc(c.address||'')}</td><td>${esc(c.state||'')}</td><td><button class="secondary" data-cedit="${i}">Edit</button> <button class="danger" data-cdel="${i}">Delete</button></td></tr>`).join('')}
 function productList(){ $('productTable').querySelector('tbody').innerHTML=db.products.map((p,i)=>`<tr><td>${esc(p.name)}</td><td>${esc(p.hsn)}</td><td>${esc(p.unit)}</td><td>${money(p.rate)}</td><td><button class="secondary" data-padd="${i}">Add to invoice</button> <button class="danger" data-pdel="${i}">Delete</button></td></tr>`).join('')}
 function readSettings(){const s={};[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>s[k]=$(id).value);return s}
 function fillSettings(){const s=db.settings;[['name','sName'],['phone','sPhone'],['address','sAddress'],['gst','sGst'],['pan','sPan'],['bank','sBank'],['branch','sBranch'],['account','sAccount'],['ifsc','sIfsc'],['rate','sRate'],['state','sState'],['sign','sSign']].forEach(([k,id])=>$(id).value=s[k]??'')}
-function invoiceData(){const t=getTotals();return {no:$('invoiceNo').value,challan:$('challanNo').value,date:$('invoiceDate').value,place:$('placeSupply').value,buyer:{name:$('buyerName').value,gst:$('buyerGst').value,address:$('buyerAddress').value,state:$('buyerState').value},items:structuredClone(items),totals:t,words:words(t.total),savedAt:new Date().toISOString()}}
+
+function dateToISO(value){
+ const v=String(value||'').trim();
+ if(!v)return '';
+ let m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+ if(m){
+  const day=Number(m[1]),month=Number(m[2]),year=Number(m[3]);
+  const d=new Date(year,month-1,day);
+  if(d.getFullYear()!==year||d.getMonth()!==month-1||d.getDate()!==day)return '';
+  return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+ }
+ m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ if(m){
+  const year=Number(m[1]),month=Number(m[2]),day=Number(m[3]);
+  const d=new Date(year,month-1,day);
+  if(d.getFullYear()!==year||d.getMonth()!==month-1||d.getDate()!==day)return '';
+  return v;
+ }
+ return '';
+}
+function formatDateDisplay(value){
+ const iso=dateToISO(value);
+ if(!iso)return String(value||'');
+ const [year,month,day]=iso.split('-');
+ return `${day}/${month}/${year}`;
+}
+function todayDisplay(){
+ const d=new Date();
+ return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function invoiceData(){const t=getTotals();return {no:$('invoiceNo').value,challan:$('challanNo').value,date:dateToISO($('invoiceDate').value),place:$('placeSupply').value,buyer:{name:$('buyerName').value,gst:$('buyerGst').value,address:$('buyerAddress').value,state:$('buyerState').value},items:structuredClone(items),totals:t,words:words(t.total),savedAt:new Date().toISOString()}}
 function renderPreview(inv=invoiceData()){
  const s=db.settings,t=inv.totals;
+ let previousDescription='';
  const lineRows=inv.items.map(x=>{
   const basis=itemBasis(x),qty=itemQuantity(x),amount=qty*(Number(x.rate)||0);
-  return `<tr><td class="desc"><b>${esc(x.desc||'')}</b>${x.size?`<br>${esc(x.size)}`:''}</td><td>${esc(x.hsn||'')}</td><td class="right">${basis==='bundles'?qty:''}</td><td class="right">${basis==='kgs'?qty:''}</td><td class="right">${money(x.rate)}</td><td class="right">${money(amount)}</td></tr>`;
+  const sameDescription=Boolean(x.desc)&&x.desc===previousDescription;
+  previousDescription=x.desc||'';
+  return `<tr><td class="desc">${sameDescription?'':`<b>${esc(x.desc||'')}</b>`}${x.size?`${sameDescription?'':'<br>'}${esc(x.size)}`:''}</td><td>${esc(x.hsn||'')}</td><td class="right">${basis==='bundles'?qty:''}</td><td class="right">${basis==='kgs'?qty:''}</td><td class="right">${money(x.rate)}</td><td class="right">${money(amount)}</td></tr>`;
  }).join('');
  $('invoicePaper').innerHTML=`
  <div class="inv-top">
@@ -413,7 +457,7 @@ function renderPreview(inv=invoiceData()){
  </div>
  <div class="inv-meta">
   <div class="inv-box inv-buyer"><div class="inv-buyer-top"><b>M/s.</b><br><strong>${esc(inv.buyer.name)}</strong><br>${esc(inv.buyer.address).replace(/\n/g,'<br>')}<br>${esc(inv.buyer.state)}</div><div class="inv-buyer-gst">Buyer's GST No. : ${esc(inv.buyer.gst)}</div></div>
-  <div class="inv-box inv-bill"><div class="inv-billrow"><span>Bill No. :</span><span>${esc(inv.no)}</span></div><div class="inv-billrow"><span>Challan No. :</span><span>${esc(inv.challan)}</span></div><div class="inv-billrow"><span>Date :</span><span>${esc(inv.date)}</span></div></div>
+  <div class="inv-box inv-bill"><div class="inv-billrow"><span>Bill No. :</span><span>${esc(inv.no)}</span></div><div class="inv-billrow"><span>Challan No. :</span><span>${esc(inv.challan)}</span></div><div class="inv-billrow"><span>Date :</span><span>${esc(formatDateDisplay(inv.date))}</span></div></div>
  </div>
  <table class="inv-table"><thead><tr><th>DESCRIPTION</th><th>HSN<br>CODE</th><th>BUNDLES</th><th>KGS.</th><th>RATE</th><th>AMOUNT</th></tr></thead><tbody>${lineRows}<tr class="line-items-empty"><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
  <div class="inv-footer-grid">
@@ -615,13 +659,13 @@ async function saveInvoice(){
  }
 }
 
-function renderHistory(){$('historyTable').querySelector('tbody').innerHTML=db.invoices.slice().reverse().map((x,ri)=>{const i=db.invoices.length-1-ri;return `<tr><td>${esc(x.no)}</td><td>${esc(x.date)}</td><td>${esc(x.buyer.name)}</td><td>${money(x.totals.total)}</td><td><button class="secondary" data-hview="${i}">View</button> <button class="secondary" data-hupload="${i}">Upload</button> <button class="secondary" data-hedit="${i}">Edit</button> <button class="danger" data-hdel="${i}">Delete</button></td></tr>`}).join('')}
-function loadInvoice(i){const x=db.invoices[i];$('invoiceNo').value=x.no;$('challanNo').value=x.challan;$('invoiceDate').value=x.date;$('placeSupply').value=x.place;$('buyerName').value=x.buyer.name;$('buyerGst').value=x.buyer.gst;$('buyerAddress').value=x.buyer.address;$('buyerState').value=x.buyer.state;$('freight').value=x.totals.freight;$('taxMode').value=x.totals.mode;$('gstRate').value=x.totals.rate;$('roundOff').value=x.totals.round;items=structuredClone(x.items);renderItems();updateTotals()}
+function renderHistory(){$('historyTable').querySelector('tbody').innerHTML=db.invoices.slice().reverse().map((x,ri)=>{const i=db.invoices.length-1-ri;return `<tr><td>${esc(x.no)}</td><td>${esc(formatDateDisplay(x.date))}</td><td>${esc(x.buyer.name)}</td><td>${money(x.totals.total)}</td><td><button class="secondary" data-hview="${i}">View</button> <button class="secondary" data-hupload="${i}">Upload</button> <button class="secondary" data-hedit="${i}">Edit</button> <button class="danger" data-hdel="${i}">Delete</button></td></tr>`}).join('')}
+function loadInvoice(i){const x=db.invoices[i];$('invoiceNo').value=x.no;$('challanNo').value=x.challan;$('invoiceDate').value=formatDateDisplay(x.date);$('placeSupply').value=x.place;$('buyerName').value=x.buyer.name;$('buyerGst').value=x.buyer.gst;$('buyerAddress').value=x.buyer.address;$('buyerState').value=x.buyer.state;$('freight').value=x.totals.freight;$('taxMode').value=x.totals.mode;$('gstRate').value=x.totals.rate;$('roundOff').value=x.totals.round;items=structuredClone(x.items);renderItems();updateTotals()}
 function saveCustomer(name,gst,address,state){if(!name.trim())return alert('Enter customer name');let i=db.customers.findIndex(c=>c.name.toLowerCase()===name.trim().toLowerCase());let c={name:name.trim(),gst,address,state};if(i>=0)db.customers[i]=c;else db.customers.push(c);persist();customerList();alert('Customer saved.')}
 function clearCustomerForm(){['cName','cGst','cAddress','cState'].forEach(id=>$(id).value='')}
 function clearProductForm(){['pName','pHsn','pUnit','pRate'].forEach(id=>$(id).value='')}
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-$('newInvoiceBtn').onclick=nextInvoice;$('previewBtn').onclick=$('previewBtn2').onclick=()=>showTab('previewTab');$('backEditBtn').onclick=()=>showTab('editorTab');$('printBtn').onclick=()=>window.print();
+$('newInvoiceBtn').onclick=nextInvoice;$('previewBtn').onclick=$('previewBtn2').onclick=()=>{const v=$('invoiceDate').value;if(!dateToISO(v)){alert('Enter a valid date in dd/MM/yyyy format.');$('invoiceDate').focus();return;}showTab('previewTab')};$('backEditBtn').onclick=()=>showTab('editorTab');$('printBtn').onclick=()=>window.print();
 $('uploadDrivePreviewBtn').onclick=()=>uploadInvoiceToDrive(invoiceData(),'manual');
 $('addItemBtn').onclick=()=>addItem();function onItemFieldChange(e){
  const el=e.target;if(el.dataset.i===undefined)return;
@@ -638,9 +682,17 @@ $('addItemBtn').onclick=()=>addItem();function onItemFieldChange(e){
 }
 $('itemsInput').addEventListener('input',onItemFieldChange);
 $('itemsInput').addEventListener('change',onItemFieldChange);
-$('itemsInput').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){items.splice(+e.target.dataset.remove,1);renderItems();updateTotals()}});
+$('itemsInput').addEventListener('click',e=>{
+ const addIndex=e.target.dataset.addsimilar;
+ if(addIndex!==undefined){
+  const source=items[+addIndex];if(!source)return;
+  const sibling={desc:source.desc,size:'',hsn:source.hsn,basis:source.basis,qty:'',bundles:'',rate:source.rate,unit:source.unit||''};
+  items.splice(+addIndex+1,0,sibling);renderItems();updateTotals();return;
+ }
+ if(e.target.dataset.remove!==undefined){items.splice(+e.target.dataset.remove,1);renderItems();updateTotals()}
+});
 ['freight','gstRate','taxMode'].forEach(id=>$(id).addEventListener('input',updateTotals));
-$('saveInvoiceBtn').onclick=saveInvoice;
+$('saveInvoiceBtn').onclick=()=>{if(!dateToISO($('invoiceDate').value)){alert('Enter a valid date in dd/MM/yyyy format.');$('invoiceDate').focus();return;}saveInvoice()};
 $('saveCustomerFromInvoice').onclick=()=>saveCustomer($('buyerName').value,$('buyerGst').value,$('buyerAddress').value,$('buyerState').value);
 $('saveCustomerBtn').onclick=()=>{saveCustomer($('cName').value,$('cGst').value,$('cAddress').value,$('cState').value);clearCustomerForm()};
 $('clearCustomerBtn').onclick=clearCustomerForm;
