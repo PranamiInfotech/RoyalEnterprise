@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal Enterprise | GST Invoice Generator</title>
-<meta name="royal-enterprise-build" content="whatsapp-cross-device-pdf-share-v4.4">
+<meta name="royal-enterprise-build" content="whatsapp-mobile-file-share-v4.5">
 <style>
 :root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
@@ -255,7 +255,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 </section>
 
 <section id="previewTab" class="tab">
-<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button class="secondary" id="uploadDrivePreviewBtn">Save PDF + JSON to Drive</button><button class="secondary" id="whatsappBtn" title="Generate the invoice PDF and share it with the customer on WhatsApp">Share PDF on WhatsApp</button><button id="printBtn">Print / Save PDF</button></div></div>
+<div class="toolbar no-print"><h2>Invoice preview</h2><div class="row"><button class="secondary" id="backEditBtn">← Back to edit</button><button class="secondary" id="uploadDrivePreviewBtn">Save PDF + JSON to Drive</button><button class="secondary" id="whatsappBtn" title="Prepare the invoice PDF, then tap again to attach it in the phone share menu">Share PDF on WhatsApp</button><button id="printBtn">Print / Save PDF</button></div></div>
 <div id="invoicePaper" class="invoice-paper"></div>
 </section>
 
@@ -702,7 +702,46 @@ function normalizeWhatsAppPhone(value){
  if(digits.length>=11&&digits.length<=15)return digits;
  return null;
 }
+let pendingWhatsAppPdf=null;
+let pendingWhatsAppMessage='';
 async function shareInvoiceWhatsApp(){
+ const button=$('whatsappBtn');
+ const originalLabel='Share PDF on WhatsApp';
+
+ // The second tap is deliberately a separate, fresh user gesture. Mobile
+ // browsers can expire the transient activation while html2pdf is rendering.
+ if(pendingWhatsAppPdf){
+  if(!(navigator.share&&navigator.canShare&&navigator.canShare({files:[pendingWhatsAppPdf]}))){
+   pendingWhatsAppPdf=null;
+   if(button)button.textContent=originalLabel;
+   alert('This browser cannot attach files through its share menu. The PDF will need to be downloaded and attached manually.');
+   return;
+  }
+  try{
+   // Call navigator.share immediately, before any await or other async work.
+   const sharePromise=navigator.share({
+    files:[pendingWhatsAppPdf],
+    title:`Royal Enterprise Invoice ${pendingWhatsAppPdf.name}`,
+    text:pendingWhatsAppMessage
+   });
+   if(button){button.disabled=true;button.textContent='Opening share menu…'}
+   await sharePromise;
+   pendingWhatsAppPdf=null;
+   pendingWhatsAppMessage='';
+   if(button){button.disabled=false;button.textContent=originalLabel}
+  }catch(error){
+   if(error&&error.name==='AbortError'){
+    // User closed the share sheet; keep the prepared PDF ready for another tap.
+    if(button){button.disabled=false;button.textContent='Share PDF on WhatsApp'}
+    return;
+   }
+   console.error('Native PDF share failed:',error);
+   if(button){button.disabled=false;button.textContent='Share PDF on WhatsApp'}
+   alert('The phone could not open the PDF sharing menu. Please tap Share PDF on WhatsApp again. If it still fails, use Print / Save PDF and attach the downloaded file in WhatsApp.');
+  }
+  return;
+ }
+
  const inv=activePreviewInvoice||invoiceData();
  if(!inv.buyer.name){alert('Please enter the customer name first.');return}
  const phone=normalizeWhatsAppPhone(inv.buyer.phone);
@@ -716,26 +755,23 @@ async function shareInvoiceWhatsApp(){
  }
  const message=`Hello ${inv.buyer.name}, please find attached your Royal Enterprise invoice ${inv.no} dated ${formatDateDisplay(inv.date)} for ${money(inv.totals.total)}. Thank you.`;
  const waUrl=`https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-
- // Open a tab synchronously from the click to avoid popup blocking on desktop.
- const waWindow=window.open('about:blank','_blank');
- const button=$('whatsappBtn');
- const originalLabel=button?button.textContent:'Share PDF on WhatsApp';
  if(button){button.disabled=true;button.textContent='Preparing PDF…'}
  try{
   const pdfBlob=await createInvoicePdfBlob(inv);
   const pdfName=invoiceFileBase(inv)+'.pdf';
   const pdfFile=new File([pdfBlob],pdfName,{type:'application/pdf'});
 
-  // On supported phones/tablets (and compatible desktop browsers), share the
-  // actual PDF file through the operating-system share sheet. The user selects WhatsApp.
   if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){
-   if(waWindow)waWindow.close();
-   await navigator.share({files:[pdfFile],title:`Royal Enterprise Invoice ${inv.no}`,text:message});
+   // Do not invoke navigator.share yet: PDF generation has completed after
+   // the original click, so ask for one fresh tap to satisfy browser security.
+   pendingWhatsAppPdf=pdfFile;
+   pendingWhatsAppMessage=message;
+   if(button){button.disabled=false;button.textContent='Tap again to attach PDF'}
+   alert('Your invoice PDF is ready. Tap the button once more, then select WhatsApp from the sharing menu. The PDF will be attached as a document.');
    return;
   }
 
-  // Fallback for browsers that cannot share files: download PDF and open WhatsApp.
+  // Unsupported browser fallback: download the real PDF, then open WhatsApp.
   const blobUrl=URL.createObjectURL(pdfBlob);
   const download=document.createElement('a');
   download.href=blobUrl;
@@ -745,22 +781,13 @@ async function shareInvoiceWhatsApp(){
   download.click();
   download.remove();
   setTimeout(()=>URL.revokeObjectURL(blobUrl),120000);
-
-  if(waWindow)waWindow.location.href=waUrl;
-  else window.open(waUrl,'_blank');
-
+  window.location.href=waUrl;
   alert('Your invoice PDF has been downloaded. WhatsApp is opening with the customer chat and message. In WhatsApp, tap the attachment (paperclip / +), choose Document, select the downloaded invoice PDF, and send it.');
  }catch(error){
-  if(error&&error.name==='AbortError'){
-   if(waWindow)waWindow.close();
-   return;
-  }
-  console.error('WhatsApp invoice share failed:',error);
-  if(waWindow)waWindow.location.href=waUrl;
-  else window.open(waUrl,'_blank');
-  alert('The PDF could not be shared automatically. Use Print / Save PDF first, then attach the saved PDF in the WhatsApp conversation.');
+  console.error('WhatsApp invoice PDF preparation failed:',error);
+  alert('The invoice PDF could not be prepared. Check your internet connection and try again, or use Print / Save PDF.');
  }finally{
-  if(button){button.disabled=false;button.textContent=originalLabel}
+  if(button&&!pendingWhatsAppPdf){button.disabled=false;button.textContent=originalLabel}
  }
 }
 async function uploadInvoiceToDrive(inv,source='manual'){
