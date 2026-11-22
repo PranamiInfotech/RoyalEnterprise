@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal Enterprise | GST Invoice Generator</title>
-<meta name="royal-enterprise-build" content="whatsapp-mobile-file-share-v4.5">
+<meta name="royal-enterprise-build" content="whatsapp-mobile-file-share-v4.6-developer-footer">
 <style>
 :root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
@@ -181,6 +181,16 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 @media(max-width:650px){.header-session{font-size:12px}.login-card{padding:20px}.inv-logo{width:52px;height:52px}}
 @media print{.inv-table th,.inv-table td{border:1.5px solid #1596c7!important}}
 
+
+/* Developer attribution footer (kept outside the printable invoice) */
+.developer-footer{max-width:1440px;margin:8px auto 22px;padding:13px 18px;text-align:center;color:#647887;font-size:12px;line-height:1.7;border-top:1px solid #d5e1e9}
+.developer-footer strong{color:#244d69;font-weight:700}
+.developer-footer a{color:#145b91;font-weight:700;text-decoration:none}
+.developer-footer a:hover{text-decoration:underline}
+.developer-footer .footer-version{display:block;margin-top:2px;color:#84939d;font-size:11px}
+@media(max-width:520px){.developer-footer{margin:8px 12px 18px;padding:12px 8px}}
+@media print{.developer-footer{display:none!important}}
+
 </style>
 </head>
 <body>
@@ -308,7 +318,11 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 </section>
 </main>
 
-
+<footer class="developer-footer no-print" aria-label="Developer information">
+  <div>Developed with <span aria-label="love">♥</span> by <strong>Upen Nathwani</strong></div>
+  <div>Software Consultancy &amp; Professional Services · <a href="https://iskconpranami.github.io/SoftwareConsultancy/" target="_blank" rel="noopener noreferrer">Visit my website ↗</a></div>
+  <span class="footer-version">Royal Enterprise Invoice Generator · v4.6</span>
+</footer>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js" referrerpolicy="no-referrer"></script>
