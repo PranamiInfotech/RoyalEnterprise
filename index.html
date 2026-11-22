@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Royal Enterprise | GST Invoice Generator</title>
-<meta name="royal-enterprise-build" content="whatsapp-mobile-file-share-v4.6-developer-footer">
+<meta name="royal-enterprise-build" content="whatsapp-mobile-file-share-v4.7-invoice-layout">
 <style>
 :root{--blue:#145b91;--blue2:#dcebf6;--ink:#172b3a;--muted:#5e6d78;--line:#7c9db5;--paper:#fff;--bg:#eef3f7}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Arial,Helvetica,sans-serif}
@@ -191,6 +191,98 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 @media(max-width:520px){.developer-footer{margin:8px 12px 18px;padding:12px 8px}}
 @media print{.developer-footer{display:none!important}}
 
+
+/* V4.7 invoice layout refinements */
+.invoice-paper{
+  border:6px double #000 !important;
+}
+.inv-top{
+  border:2px solid #145b91 !important;
+}
+.inv-brandband{
+  background:#145b91 !important;
+  border:1px solid #145b91;
+  border-radius:1px;
+}
+.inv-brandband .brand{
+  color:#fff !important;
+  text-shadow:0 1px 1px #092d4b;
+  font-weight:900;
+}
+.inv-address{
+  padding-left:10px !important;
+  padding-right:5px !important;
+  overflow-wrap:anywhere;
+  text-align:left;
+  border-top:2px solid #145b91 !important;
+}
+.inv-box,.inv-bank,.inv-vehicle,.inv-gstpan,.inv-words,.inv-terms,.inv-sign{
+  border-color:#145b91 !important;
+}
+.inv-table th{
+  border-color:#145b91 !important;
+}
+.inv-table td{
+  border-left-color:#145b91 !important;
+  border-right-color:#145b91 !important;
+}
+.inv-table tbody tr:last-child td{
+  border-bottom-color:#145b91 !important;
+}
+/* Fine separators use a double peacock-blue rule. */
+.inv-billrow{
+  border-bottom:3px double #008c95 !important;
+}
+.inv-billrow:last-child{
+  border-bottom:0 !important;
+}
+.inv-table .inv-product-group:not(:last-of-type) td{
+  border-bottom:3px double #008c95 !important;
+}
+.inv-totals{
+  border-collapse:collapse !important;
+  border-spacing:0 !important;
+}
+.inv-totals td{
+  border:1px solid #145b91 !important;
+}
+.inv-totals tr:not(.grand) + tr td{
+  border-top:3px double #008c95 !important;
+}
+.inv-totals .grand td{
+  border-top:2px solid #145b91 !important;
+}
+@media(max-width:650px){
+  .inv-brandband{
+    grid-template-columns:42px minmax(0,1fr) 88px !important;
+    padding:3px 4px !important;
+    gap:3px;
+  }
+  .inv-brandband .brand{
+    white-space:normal !important;
+    overflow-wrap:anywhere;
+    font-size:clamp(16px,4.6vw,25px) !important;
+    line-height:1.1;
+  }
+  .inv-address{
+    padding-left:8px !important;
+    font-size:10px;
+  }
+}
+@media print{
+  .invoice-paper{border:6px double #000 !important}
+  .inv-brandband{
+    background:#145b91 !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  .inv-brandband .brand{
+    color:#fff !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -321,7 +413,7 @@ table{width:100%;border-collapse:collapse}th,td{border:1px solid #b9cbd8;padding
 <footer class="developer-footer no-print" aria-label="Developer information">
   <div>Developed with <span aria-label="love">♥</span> by <strong>Upen Nathwani</strong></div>
   <div>Software Consultancy &amp; Professional Services · <a href="https://iskconpranami.github.io/SoftwareConsultancy/" target="_blank" rel="noopener noreferrer">Visit my website ↗</a></div>
-  <span class="footer-version">Royal Enterprise Invoice Generator · v4.6</span>
+  <span class="footer-version">Royal Enterprise Invoice Generator · v4.7</span>
 </footer>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -549,13 +641,13 @@ function renderPreview(inv=invoiceData()){
  $('invoicePaper').innerHTML=`
  <div class="inv-top">
   <div class="inv-headline"><span>TAX INVOICE</span><span>Subject to Ahmedabad Jurisdiction</span><span></span></div>
-  <div class="inv-brandband"><div class="inv-logo"><img src="royal-enterprise-logo.webp" alt="Royal Enterprise logo"></div><div class="brand">${esc(s.name)}</div><div class="inv-phone">M : ${esc(s.phone).replace(' / ','<br>')}</div></div>
+  <div class="inv-brandband"><div class="inv-logo"><img src="royal-enterprise-logo.webp" alt="Royal Enterprise logo"></div><div class="brand">Royal Enterprise</div><div class="inv-phone">M : ${esc(s.phone).replace(' / ','<br>')}</div></div>
   <div class="inv-dealers">Authorised Dealers of :<br>Craft Board, Kappa Board, Duplex Board, Stiff Board, White Mill Board, Grey Board &amp; All Type of Boards</div>
   <div class="inv-address">${esc(s.address)}</div>
  </div>
  <div class="inv-meta">
   <div class="inv-box inv-buyer"><div class="inv-buyer-top"><b>M/s.</b><br><strong>${esc(inv.buyer.name)}</strong>${inv.buyer.phone?`<br>Mobile : ${esc(inv.buyer.phone)}`:'' }<br>${esc(inv.buyer.address).replace(/\n/g,'<br>')}<br>${esc(inv.buyer.state)}</div><div class="inv-buyer-gst">Buyer's GST No. : ${esc(inv.buyer.gst)}</div></div>
-  <div class="inv-box inv-bill"><div class="inv-billrow"><span>Bill No. :</span><span>${esc(inv.no)}</span></div><div class="inv-billrow"><span>Challan No. :</span><span>${esc(inv.challan)}</span></div><div class="inv-billrow"><span>Date :</span><span>${esc(formatDateDisplay(inv.date))}</span></div></div>
+  <div class="inv-box inv-bill"><div class="inv-billrow"><span>Bill No. :</span><span>&nbsp;</span></div><div class="inv-billrow"><span>Challan No. :</span><span>${esc(inv.challan)}</span></div><div class="inv-billrow"><span>Date :</span><span>${esc(formatDateDisplay(inv.date))}</span></div></div>
  </div>
  <table class="inv-table"><thead><tr><th>DESCRIPTION</th><th>HSN<br>CODE</th><th>BUNDLES</th><th>KGS.</th><th>RATE</th><th>AMOUNT</th></tr></thead><tbody>${lineRows}<tr class="line-items-empty"><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
  <div class="inv-footer-grid">
@@ -568,8 +660,9 @@ function renderPreview(inv=invoiceData()){
   <div class="inv-right-footer"><table class="inv-totals">
    <tr><td>TOTAL</td><td class="right">${money(t.subtotal)}</td></tr>
    ${t.mode==='intra'?`<tr><td>CGST ${t.rate/2}%</td><td class="right">${money(t.cgst)}</td></tr><tr><td>SGST ${t.rate/2}%</td><td class="right">${money(t.sgst)}</td></tr>`:t.mode==='inter'?`<tr><td>IGST ${t.rate}%</td><td class="right">${money(t.igst)}</td></tr>`:`<tr><td>GST</td><td class="right">${money(0)}</td></tr>`}
+   <tr><td>Round Off</td><td class="right">${money(t.round)}</td></tr>
    ${t.freight?`<tr><td>Freight</td><td class="right">${money(t.freight)}</td></tr>`:''}
-   <tr><td>Round Off</td><td class="right">${money(t.round)}</td></tr><tr class="grand"><td>Grand TOTAL</td><td class="right">${money(t.total)}</td></tr>
+   <tr class="grand"><td>Grand TOTAL</td><td class="right">${money(t.total)}</td></tr>
   </table></div>
  </div>
  <div class="inv-terms-sign"><div class="inv-terms"><b>TERMS :</b><br>Interest @ 24% will be charged in bills not paid within 30 days of presentation.<br>Kindly note that any complaint regarding goods you received must be made within 24 hours after delivery.<br><b>E. &amp; O. E.</b></div><div class="inv-sign"><div class="sign-title">For, ${esc(s.name)}</div><div class="signature-line"></div><div class="sign-label">${esc(s.sign||'Authorised Signatory')}</div></div></div>`;
